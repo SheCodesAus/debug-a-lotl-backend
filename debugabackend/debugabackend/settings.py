@@ -25,12 +25,18 @@ SECRET_KEY = 'django-insecure-e$@1vndf%d(2smsjxb@(k^84r624awgpm%e=ku2@npjycou*vh
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
+# Allow frontend (Vite dev server) to call the API
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
+]
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     # fundraisers.apps.FundraisersConfig',
     'rest_framework',
     'django.contrib.admin',
@@ -53,6 +59,7 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
