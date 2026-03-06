@@ -2,10 +2,22 @@ from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from .models import CustomUser
 from .serializers import CustomUserSerializer
+
+
+class CurrentUser(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            "id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email or "",
+        })
 
 class CustomUserList(APIView):
     def get(self, request):
@@ -39,17 +51,29 @@ class CustomUserDetail(APIView):
         return Response(serializer.data)
     
 class CustomAuthToken(ObtainAuthToken):
-   def post(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(
             data=request.data,
-            context={'request': request}
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
+        user = serializer.validated_data["user"]
 
+        if not user.is_active:
+            return Response(
+                {"detail": "This account is disabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not (user.username or user.username.strip()):
+            return Response(
+                {"detail": "Invalid account: no username."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        token, created = Token.objects.get_or_create(user=user)
         return Response({
-            'token': token.key,
-            'user_id': user.id,
-            'email': user.email
+            "token": token.key,
+            "user_id": user.id,
+            "username": user.username,
+            "email": user.email or "",
         })
