@@ -1,3 +1,38 @@
 from django.db import models
+from django.conf import settings
 
-# Create your models here.
+
+class Club(models.Model):
+    MEETING_IN_PERSON = "in-person"
+    MEETING_VIRTUAL = "virtual"
+    MEETING_CHOICES = [
+        (MEETING_IN_PERSON, "In person"),
+        (MEETING_VIRTUAL, "Virtual"),
+    ]
+
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    banner_image = models.URLField(max_length=500, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_clubs",
+    )
+    current_book_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_public = models.BooleanField(
+        default=True,
+        help_text="True = public event, False = private event",
+    )
+    meeting_type = models.CharField(
+        max_length=20,
+        choices=MEETING_CHOICES,
+        default=MEETING_VIRTUAL,
+    )
+    location = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
