@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'users.apps.UsersConfig',
+    'bookclub.apps.BookclubConfig',
     'rest_framework.authtoken',
     'django.contrib.messages',
     'django.contrib.staticfiles',
