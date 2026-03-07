@@ -10,15 +10,13 @@
 ## Table of Contents
 
 - [Mission Statement](#mission-statement)
-- [Target Audience](#target-audience)
+- [Target Users](#target-users)
 - [Features](#features)
-  - [Summary](#summary)
-  - [Users & Roles](#users--roles)
+  - [User Roles](#user-roles)
   - [Book Clubs](#book-clubs)
-  - [Books & Voting](#books--voting)
+  - [Books](#books)
   - [Meetings](#meetings)
-  - [Reading Progress](#reading-progress)
-  - [Discussions](#discussions)
+  - [Announcement's board](#announcements-board)
   - [Notifications](#notifications)
   - [Pages / Endpoint Functionality](#pages--endpoint-functionality)
   - [Nice To Haves](#nice-to-haves)
@@ -29,7 +27,6 @@
   - [Git & Deployment](#git--deployment)
 - [Back-End Implementation](#back-end-implementation)
   - [API Specification](#api-specification)
-  - [Object Definitions](#object-definitions)
   - [Database Schema](#database-schema)
 - [Front-End Implementation](#front-end-implementation)
   - [Wireframes](#wireframes)
@@ -57,7 +54,7 @@ NAME serves two primary user groups:
 
 Open Book allows users to create or join book clubs, suggest and vote on books, track individual and group reading progress with chapter milestones, participate in threaded chapter-by-chapter discussions, and schedule meetings with RSVP functionality. The platform supports both private (requested join) and public (open join) clubs with role-based permissions for organisers and members.
 
-##User and Roles
+### User Roles
 
 | Role | Access | Description |
 |------|--------|-------------|
@@ -223,6 +220,7 @@ Open Book allows users to create or join book clubs, suggest and vote on books, 
 | POST | `/clubs/{id}/` | Add a message to the announcement thread | `{"message", "created_at"}` | 201 | Organiser |
 
 ### Database Schema
+
 Schema: 
 erDiagram
 
@@ -300,8 +298,39 @@ erDiagram
     User ||--o{ Rating : "reviews"
     Book ||--o{ Rating : "rated by"
 
+## Front-end Implementation
 
+### Branding
 
+#### Fonts
+
+| Role | Font | Style |
+|------|------|-------|
+| Headings | [Lora](https://fonts.google.com/specimen/Lora) | Elegant serif with calligraphic roots. Literary and trustworthy. |
+| Body | [Nunito Sans](https://fonts.google.com/specimen/Nunito+Sans) | Clean, rounded sans-serif. Friendly and easy to read. |
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito+Sans:wght@300;400;500;600;700&display=swap');
+
+font-family: 'Lora', serif;              /* Headings */
+font-family: 'Nunito Sans', sans-serif;   /* Body */
+```
+
+#### Colours
+
+**Primary**
+
+| Name | Hex | Preview | Usage |
+|------|-----|---------|-------|
+| Terracotta | `#C9624A` | 🟧 | Buttons, links, active states |
+| Terracotta Light | `#FBF0EC` | 🟨 | Hover states, tags, soft backgrounds |
+
+**Secondary**
+
+| Name | Hex | Preview | Usage |
+|------|-----|---------|-------|
+| Teal | `#5A8F8B` | 🟩 | Success states, progress indicators |
+| Teal Light | `#EBF4F3` | ⬜ | Status badges, secondary backgrounds |
 
 
 ### Wireframes
