@@ -1,270 +1,338 @@
-# Your Product Name
-> Your Group Name
+<img src="./debug-a-lotl-backend\img\logo1.png">
 
-> [!NOTE]
-> This repo has been shared with your group. Use it to develop your group project.
->
-> Your group will have received two identical repos - one for your project's back-end, and another for the front-end. Although they are identical right now they are about to diverge, because you'll be using one to create a DRF project and the other to create a React project!
+> Open Book
 
-> [!IMPORTANT]  
-> Use this `README.md` file to document your MVP using Markdown. Feel free to duplicate the product description aspects between the front-end README and the back-end README, but consider splitting out the technical design aspects to the specific repo that implements them. 
->
-> An example MVP spec (containing both front- and back-end descriptions) is set out below - you should replace it with your own content! (Remember to delete any "admonition" blocks like this `IMPORTANT` section, the `CAUTION` and `NOTE` sections, etc.)
+**A web platform for book clubs to organize, read, and grow together.**
 
-> [!CAUTION]  
-> In order to set up your project, **one** member of the group should clone this repo down, initialise a new React/DRF project, commit, and push. 
->
-> If more than one group member performs the setup, you'll have Git problems. Check out [the Git collaboration content](https://github.com/SheCodesAus/PlusLessonContent?tab=readme-ov-file#26---group-project) for more on how to use Git as a team.
+> Built with Django REST Framework (Back-End) and React (Front-End)
+
 
 ## Table of Contents
 
-- [Your Product Name](#your-product-name)
-  - [Table of Contents](#table-of-contents)
-  - [Mission Statement](#mission-statement)
-  - [Features](#features)
-    - [Summary](#summary)
-    - [Users](#users)
-    - [Sticky Notes](#sticky-notes)
-    - [Collections](#collections)
-    - [Pages/Endpoint Functionality](#pagesendpoint-functionality)
-    - [Nice To Haves](#nice-to-haves)
-  - [Technical Implementation](#technical-implementation)
-    - [Back-End](#back-end)
-    - [Front-End](#front-end)
-    - [Git \& Deployment](#git--deployment)
-  - [Target Audience](#target-audience)
-  - [Back-end Implementation](#back-end-implementation)
-    - [API Specification](#api-specification)
-    - [Object Definitions](#object-definitions)
-      - [Users](#users-1)
-      - [Sticky Notes](#sticky-notes-1)
-    - [Database Schema](#database-schema)
-  - [Front-end Implementation](#front-end-implementation)
-    - [Wireframes](#wireframes)
-      - [Home Page](#home-page)
-      - [Collection List Page](#collection-list-page)
-    - [Logo](#logo)
-    - [Colours](#colours)
-      - [Primary](#primary)
-      - [Secondary](#secondary)
-    - [Font](#font)
+- [Mission Statement](#mission-statement)
+- [Target Users](#target-users)
+- [Features](#features)
+  - [User Roles](#user-roles)
+  - [Book Clubs](#book-clubs)
+  - [Books](#books)
+  - [Meetings](#meetings)
+  - [Announcement's board](#announcements-board)
+  - [Notifications](#notifications)
+  - [Pages / Endpoint Functionality](#pages--endpoint-functionality)
+  - [Nice To Haves](#nice-to-haves)
+- [Technical Implementation](#technical-implementation)
+  - [Back-End](#back-end)
+  - [Front-End](#front-end)
+  - [External Integrations](#external-integrations)
+  - [Git & Deployment](#git--deployment)
+- [Back-End Implementation](#back-end-implementation)
+  - [API Specification](#api-specification)
+  - [Database Schema](#database-schema)
+- [Front-End Implementation](#front-end-implementation)
+  - [Wireframes](#wireframes)
+  - [Branding](#branding)
+
+---
+
 
 
 ## Mission Statement
 
-> [!NOTE]  
-> What is the purpose of your project? (approx 100-200 words). Example below.
+Open Book is an all-in-one platform designed to simplify and enrich the book club experience. It replaces the scattered mix of group chats, spreadsheets, and calendar invites with a single, purpose-built space where readers can organise clubs, vote on what to read next, track their progress through a book, hold meaningful discussions chapter by chapter, and schedule meetings with integrated RSVP.
 
-Win-Wall is an online collaboration tool that provides organisers of SheCodes workshops as well as their attendees a visual workspace where they can add digital sticky notes to a blank digital wall in order to share wins with others during live events.
-This tool offers an unlimited number of digital win walls which are organised by event collection in order to facilitate collaboration during live events and easily bring all attendees’ wins to light in real time.
-Win-Wall comes packed full of features such as the ability to share a unique digital win wall to a live audience, easily approve and export win wall messages to upload on a WordPress website, manage user roles to give event organisers and attendees access to different functionalities, and many more.
+Whether it's a small group of friends or a larger community of readers, Open Book gives both organisers and members the tools to keep their book club active, structured, and engaging — without the usual coordination headaches.
+
+## Target Users
+
+NAME serves two primary user groups:
+
+**Book Club Owners** are the people who take the initiative to bring readers together. They need tools to create and manage clubs, schedule meetings, open voting rounds, set reading milestones, and moderate discussions. Open Book gives them a centralised dashboard to handle all of this without juggling multiple apps.
+
+**Book Club Members** are readers who want to participate without friction. They want to join clubs easily, vote on the next book, update their reading progress, discuss chapters with fellow readers, and RSVP to meetings. Open Book makes the reading experience social and structured so members stay engaged between meetings.
 
 ## Features
 
-> [!NOTE]  
-> Tell me the features your website will and will not have. Give detailed explanations, this is where you define the scope of your project. Example below.
+Open Book allows users to create or join book clubs, suggest and vote on books, track individual and group reading progress with chapter milestones, participate in threaded chapter-by-chapter discussions, and schedule meetings with RSVP functionality. The platform supports both private (requested join) and public (open join) clubs with role-based permissions for organisers and members.
+
+### User Roles
+
+| Role | Access | Description |
+|------|--------|-------------|
+| **Owner** | Can create clubs, manage club settings, accept members, and schedule meetings. | The person who runs a specific book club. A user can be an owner in one club and a member in another. |
+| **Member** | Can join clubs and RSVP to meetings. | A regular book club participant. A user can belong to multiple clubs. |
+
+### Book Clubs
+
+| Feature | Access | Notes / Conditions |
+|---------|--------|--------------------|
+| Create club | Any authenticated user | User becomes the owner of the club they create. |
+| Edit club details | Owner | Name, description, genre tags, visibility. |
+| Delete club | Owner | Soft delete preferred. Members are notified. |
+| Set visibility | Owner | Private (Requested join) or Public (anyone can join). |
+| Join club | Any authenticated user | Public clubs: instant join. Private clubs: requested join. |
+
+### Books 
+
+| Feature | Access | Notes / Conditions |
+|---------|--------|--------------------|
+| Search books | Any authenticated user | Search via Google Books API by title or author. |
+| Select current book | Owner | Marks a book as the club's current read. |
+| Change reading status | Owner | The owner selects the status of the book they have previously selected. |
+
+### Meetings
+
+| Feature | Access | Notes / Conditions |
+|---------|--------|--------------------|
+| Schedule meeting | Owner | Title, date/time/lenght, description, select meeting in person or virtual. |
+| Edit meeting | Owner | Update details before the meeting. |
+| Attending meeting | Member, Owner | Details posted on the announcement's board |
+| View meetings | Member, Owner | Upcoming meeting details. |
+
+### Announcement's board
+
+| Feature | Access | Notes / Conditions |
+|---------|--------|--------------------|
+| Post comment | Owner | Write an open message, the system add the time the commment was created. |
+
+### Notifications
+
+| Event | Recipient | Description |
+|-------|-----------|-------------|
+| Accepted or Rejected members | Owner | When asked to join a private club and it is only for private bookclubs |
 
 
-### Summary 
-Provide Guest users ability to post sticky notes to a live event board. Once posted, users can view all posts for live event. Admin and approver access will allow events boards to be created, sticky notes to be edited, approved and exported.
+### Pages / Endpoint Functionality
 
-### Users
-
-| Type               | Access                                                                                                                                                                                                                                                                                             | Role type assignment                                |
-| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------- |
-| Superuser or admin | <br> - All access   <br> - Can log in  <br> - Can log out  <br> - Create and manage events  <br> - Create and manage collections  <br> - Create and manage other users  <br> - Approve, archive and edit notes  <br> - Export notes as CSV  <br> - Can See and edit their details via profile page | Kate                                                |
-| Approver           | <br> - Can log in  <br> - Can log out  <br> - Approve, archive and edit notes  <br> - Can See and edit their details via profile page                                                                                                                                                              | Mentors, volunteers, shecodes11507 staff            |
-| Guest              | <br> - Create post it notes  <br> - Submit post it notes  <br> - View Live event board with all post it notes  <br> - can post with and without including their name                                                                                                                               | Public: Users who attend events, workshops, courses |
-
-### Sticky Notes
-
-| Feature                                        | Access                                                                                                                                                                                                           | Notes/Conditions                                                                                              |
-| :--------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| Create                                         | Can be created by anyone with URL                                                                                                                                                                                | <br> - Limit length of sticky note text  <br> - option to add hashtag (TBC: as main text or additional field) |
-| Post                                           | Post as Guest                                                                                                                                                                                                    | <br> - Submits Sticky note to Live event board                                                                |
-| View                                           | Guests, Approvers and Admin can view posts via Live event board Admin and Approvers can view once status updated from Live                                                                                       |                                                                                                               |
-| Edit                                           | Can be edited by Admin and Approvers                                                                                                                                                                             | <br> - Edit sticky note text, eg: for spelling errors before Status is set to approved                        |
-| Statuses: Live, Unapproved, Approved, Archived | <br> - Auto status of notes will be ‘live’ based on linked event  <br> - Auto status of notes will be unapproved based on closure of linked event  <br> - Update to Approved and Archived by Admin and Approvers |                                                                                                               |
-| Export                                         | <br> - Export as Admin only                                                                                                                                                                                      | <br> - CSV file  <br> - Format: collection, event, sticky note text                                           |
-| Flag- Is Exported                              | <br> - Auto flag based on whether Admin has exported the sticky note                                                                                                                                             | <br> - Boolean                                                                                                |
-| Link to Collection                             | <br> - Controlled by Admin                                                                                                                                                                                       | <br> - Based on type of event, eg: shecodes flash, plus, other event types.                                   |
-| Link to Event                                  | <br> - Auto link based on event URL  <br> - Link to event can be edited by Admin                                                                                                                                 |                                                                                                               |
-| Link to Approver                               | <br> - Controlled by Admin and Approver who creates the event                                                                                                                                                    | <br> - Approver is User who is managing or associated with admin of the event                                 |
-
-### Collections
-
-| Feature                           | Access                     | Notes/Conditions           |
-| :-------------------------------- | :------------------------- | :------------------------- |
-| Assign events to a collection     | <br> - Based on event type |                            |
-| Assign approver to a collection   | <br> - admin               |                            |
-| Default event board live duration | <br> - Admin               | <br> - Based on event type |
-| View event boards by collection   | <br> - Admin, Approver     |                            |
-| Export notes by Collection        | <br> - Admin               |                            |
-
-### Pages/Endpoint Functionality
-
-| Endpoint              | functionality                                                                                                                                                                     | comments                                                                                         |
-| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
-| Create and post notes | <br> - Available to anyone with URL   <br> - Add sticky notes   <br> - Post sticky notes                                                                                          | <br> - Sticky note ‘feel’ is preferred  <br> - Easy to read and accessible  <br> - Good contrast |
-| Event board           | <br> - Once note is posted, redirect to live session  notes  <br> - Able to post more notes (redirect back or add directly?)  <br> - Live session ends at midnight – day of event | <br> - view live notes  <br> - search notes by text/hashtag                                      |
-| Admin page            | All admin functions  <br> - can also create another admin account                                                                                                                 | <br> - Requires auth  <br> - initial admin created by DB                                         |
-| Register as Approver  | <br> - users can register as approvers  <br> - once registered, approver can log in                                                                                               | Requires shecodes email address to be used                                                       |
-| Approver page         | Approver functions                                                                                                                                                                | Requires auth Easy to read, accessible, easy to use for new users                                |
-| Profile page          | <br> - All registered users  <br> - Can view their personal info  <br> - Can update their info                                                                                    | Requires auth                                                                                    |
+| Page | Functionality | Notes |
+|------|--------------|-------|
+| Home | Marketing page with features overview, CTA to sign up, carousel with the bookclubs highlights and platform stats. | Public access. |
+| Register | Create account with username, email, password. | Public access. |
+| Login | Authenticate with email and password. Stores locally the JWT token. | Public access. |
+| Dashboard User | Pofile picture, name, description, bookclubs I own and bookclubs I belong to. Also a CTA to create a bookclub | Authenticated. |
+| Dashboard BookClub | Banner, profile pic, title, description, genre, No of members, notifications, historic reading and meeting planner | Authenticated. |
+| Announcement's board | Book updates, link to virtual meeting and meeting agenda | Club members only. |
+| Meetings | List upcoming meetings, book now CTA, schedule new meeting (Owner). | Club members only. |
+| Create Club | Form: name, description, visibility, upload an image. | Authenticated. |
+| Profile | View/edit personal info, profile picture, bio. | Authenticated. |
 
 ### Nice To Haves
 
-- Register during or after event; Sign up for additional events: Email address, Name, Event
-- History of my own notes as Registered user
-- Events I have registered for as Registered user
-- Be able to edit my own notes – as Registered user but only until its been approved
-- Bulk update sticky note status
-- QR code generation 
-- Use QR codes to access event as guest
+- Book voting/polls.
+- In-platform book rating (instead of external rating).
+- Sharing book to another user (send notification).
+- Multiple organizers per club (cap of 3 suggested).
+- Calendar integration (e.g., Google Calendar).
+- Notification system.
+- Full discussion threads (beyond simple organizer note).
+- Override external book ratings with platform ratings.
+- Advanced member management.
+- Leave club: Member | Member can leave at any time.
+- Remove member: The organiser can remove a member from the club. 
+- Multiple organisers: An owner can promote a member to co-organiser.
 
 ## Technical Implementation
 
-> [!NOTE]  
-> What languages and frameworks will you be using? What kind of database will you be using? How will you deploy the website? Example Below.
-
 ### Back-End
 
-- Django / DRF API
 - Python
+- Django
+- Django REST Framework
+- SQL Lite
+- JWT Authentication (SimpleJWT)
 
 ### Front-End
 
-- React / JavaScript
-- HTML/CSS
+- React
+- React Router
+- Axios (API communication)
+- React Query
+- Tailwind CSS
+
+### External Integrations
+
+- Google Books API (book search and metadata)
 
 ### Git & Deployment
-- Heroku
-- Netlify
-- GitHub
 
-This application's back-end will be deployed to Heroku. The front-end will be deployed separately to Netlify.
- 
-We will also use Insomnia to ensure API endpoints are working smoothly (we will utilise a local and deployed environment in Insomnia).
+- **Back-End:** Deployed to Heroku 
+- **Front-End:** Deployed to Netlify 
+- **Database:** Heroku Postgres 
+- **Version Control:** GitHub with feature branch workflow
+- **API Testing:** Insomnia 
 
-## Target Audience
+## Back-End Implementation
 
-> [!NOTE]  
-> Who is the website for? (approx 100 words). Example below.
-
-This website has two major target audiences: She Codes ‘Leaders, Volunteers & Mentors’, and ‘She Coders’ joining the one-day/short-term workshops. 
-
-**She Codes Leaders, Volunteers and Mentors** (administrators) will use this website to assign one-day workshop coders to specific events and/or collections where they can fill-out a “sticky note” win and paste it on the WinsWall. The administrators will then be able to sort, authorise and delete these stickies and easily download the data in a CSV file. This website is targeted towards this group in order to automate a normally menial task.
-
-**She Coders** (laypeople) will use this website to post their Win on a WinWall board, keep track of what events they’ve attended and also view previously written wins. This website is targeted to this group in order to prevent loss of paper data (physical sticky notes) and also make the WinsWall more interactive.
-
-## Back-end Implementation
 ### API Specification
 
-| HTTP Method | URL                                 | Purpose                                                                                                                                  | Request Body                                                                                                       | Successful Response Code | Authentication and Authorization                      |
-| :---------- | :---------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- | :----------------------- | :---------------------------------------------------- |
-| POST        | /login                              | Allow users to log in                                                                                                                    | ““Username”:”string”, “password”:”string”                                                                          | 200                      | Token auth                                            |
-| POST        | /logout                             | Allow users to log out ( end active session)                                                                                             | ““Username”:”string”, “password”:”string”                                                                          | 200                      | Will clear user log in session \- remove stored token |
-| POST        | /Register                           | Create new student or approver user                                                                                                      | “Username”:”string”, “FullName”: “string” “Email”:”string”,”Password”:”string”, ”Password2”:”string”,              | 201                      | Admin                                                 |
-| PUT         | /Profile/ID                         | Edit user                                                                                                                                | “Username”:”string”, “FullName”: “string” “Email”:”string”, “Avatar”:”string”,  “Bio”:”string”, “Socials”:”string” | 200                      | Admin, approver or student with matching ID           |
-| GET         | /Profile/ID                         | View User profile                                                                                                                        | NA                                                                                                                 | 200                      | Any                                                   |
-| DELETE      | /User/ID                            | Delete user                                                                                                                              | NA                                                                                                                 | 204                      | Admin, approver or student with matching ID           |
-| POST        | /EventCollection                    | Create new Event Collection                                                                                                              | “Title”:”string”, “IsExported”:”boolean” “Approver”: integer                                                       | 201                      | Admin                                                 |
-| PUT         | /EventCollection/Id                 | Update Event collection                                                                                                                  | “Title”:”string”, “IsExported”:”boolean”                                                                           | 200                      | Admin, Approver linked to event?                      |
-| DELETE      | /EventCollection/Id                 | Delete Event collection                                                                                                                  | NA                                                                                                                 | 204                      | Admin                                                 |
-| POST        | /EventBoard/                        | Create new Event board                                                                                                                   | “Title”: “string”, “StartDate”:”datetime”, “EndDate:”datetime”                                                     | 201                      | Admin, approvers                                      |
-| PUT         | /EventBoard/ID                      | Update Event board                                                                                                                       | “Title”: “string”, “StartDate”:”datetime”, “EndDate:”datetime”                                                     | 200                      | Admin, approvers                                      |
-| DELETE      | /EventBoard/ID                      | Delete Event board                                                                                                                       | NA                                                                                                                 | 204                      | Admin or author of event                              |
-| GET         | /EventBoard/ID                      | Get Event board details                                                                                                                  | NA                                                                                                                 | 200                      | Open access                                           |
-| POST        | /stickyNote/                        | Create a new sticky note as Guest user                                                                                                   | “WinComment”:”string”                                                                                              | 201                      | Open access                                           |
-| GET         | /stickyNotes/?Status=Live\&Event.ID | Get Sticky notes for an event  Use query params to filter by event ID and Status                                                         | NA                                                                                                                 | 200                      | Open access                                           |
-| GET         | /stickyNotes/?Event.ID              | Get Sticky notes for an event                                                                                                            | NA                                                                                                                 | 200                      | Admin, approvers                                      |
-| GET         | /stickyNotes/                       | Export sticky notes as CSV (eg:response.setContentType("text/csv")) Can optionally filter by: event ID, Status, isexported, collectionId | NA                                                                                                                 | 200                      | Admin                                                 |
-| PUT         | /stickyNotes/ID                     | Edit sticky note, update status of sticky note to Approved or Archived                                                                   | “WinComment”:”string”                                                                                              | 200                      | Admin, approvers                                      |
-| POST        | /StickyStatus                       | Create available statuses for stickyNotes                                                                                                | “StatusName”:”string”                                                                                              | 201                      | Admin                                                 |
-| GET         | /StickyStatus                       | Get all statuses                                                                                                                         | NA                                                                                                                 | 200                      | Admin                                                 |
+#### Authentication
 
-### Object Definitions
-
-> [!NOTE]  
-> Define the actual objects that your API returns. The example GET method above says it returns “all projects”, so we need to define what a “project” looks like. Example below.
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| POST | `/api-token-auth/` | Sign up to app | `{"email", "username", "password"}` | 200 | None |
+| POST | `/users/` | Log in to app | `{"password", "user_name"}` | 201 | Users |
 
 #### Users
-| Field              | Data type |
-| :----------------- | :-------- |
-| *User\_ID (PK)*    |           |
-| *Username*         | string    |
-| FullName           | string    |
-| *Email*            | string    |
-| *Password*         | string    |
-| *Password2*        | string    |
-| Auth\_ID (FK)      | integer   |
-| StickyNoteId (FK)  | integer   |
-| Event\_Id (FK)     | integer   |
-| Collection\_Id(FK) | integer   |
-| Avatar             | string    |
-| Bio                | string    |
-| SocialLink         | string    |
 
-#### Sticky Notes
-| Field                   | Data Type |
-| :---------------------- | :-------- |
-| Sticky\_ID (PK)         | integer   |
-| WinComment              | string    |
-| Guest                   | boolean   |
-| UserId (FK)             | integer   |
-| Event\_Id (FK)          | integrer  |
-| Collection\_Id (FK)     | integrer  |
-| Sticky\_Status\_ID (FK) | integrer  |
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| POST | `/users/{id}/` | Create a user profile | `{"name", "image", "meeting_type", "location", "genre"}` | 201 | Users |
+| PUT | `/users/{id}/` | Update user profile | `{"name", "image", "meeting_type", "location", "genre"}` | 201 | Users |
 
-> [!NOTE]  
-> ... etc
+#### Clubs
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| GET | `/clubs/` | Retrieve a list of book clubs | — | 200 | All |
+| POST | `/clubs/` | Create a new book club | `{"name", "description", "banner_image", "created_at", "is_public", "meeting_type", "location", "status"}` | 201 | Users |
+| GET | `/clubs/{id}/` | Display club book history | — | 200 | Club members |
+| PUT | `/clubs/{id}/` | Update the club details | `{"name", "description", "banner_image", "created_at", "is_public", "meeting_type", "location", "status"}` | 201 | Organiser |
+| PATCH | `/clubs/{id}/` | Change the club status to inactive | `{"status"}` | 201 | Organiser |
+| PATCH | `/clubs/{id}/` | Change club book status (to read, reading, read) | `{"status"}` | 201 | Organiser |
+
+#### Books
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| POST | `/clubs/{id}/` | Upload a book to the club (retrieve from Google Books) | — | 200 | Organiser |
+
+#### Members
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| GET | `/members/` | Retrieve a list of members of a book club | — | 200 | Organiser |
+| POST | `/members/` | Join a book club | — | 201 | Users |
+
+#### Meetings
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| POST | `/clubs/{id}/` | Schedule a meeting | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
+| PUT | `/clubs/{id}/` | Update meeting details | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
+| POST | `/clubs/{id}/` | Join a meeting | — | 201 | Members |
+| POST | `/meetings/{id}/` | Schedule a meeting | `{"date-time", "meeting_type", "location"}` | 201 | Organiser |
+| PUT | `/meetings/{id}/` | Update meeting details | `{"date-time", "meeting_type", "location"}` | 201 | Organiser |
+| POST | `/meetings/{id}/` | Join a meeting | — | 201 | Members |
+
+#### Announcements
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| POST | `/clubs/{id}/` | Add a message to the announcement thread | `{"message", "created_at"}` | 201 | Organiser |
 
 ### Database Schema
-> [!NOTE]  
-> Insert an image of your database schema (could be a photo of a hand-drawn schema or a screenshot of a schema created using a tool such as ​​https://drawsql.app/). Example below.
 
-![Our database schema](./img/schema.png)
+Schema: 
+erDiagram
+
+    User {
+        int id PK
+        string username
+        string email
+        string password
+        string profile_picture
+        text bio
+        timestamp date_joined
+    }
+
+    Club {
+        int id PK
+        string name
+        text description
+        string banner_image
+        int created_by FK
+        int current_book_id FK
+        timestamp created_at
+    }
+
+    User_Club {
+        int id PK
+        int user_id FK
+        int bookclub_id FK
+        string role "Owner, Member"
+        string status "Pending, Approved, Rejected"
+        timestamp joined_at
+    }
+
+    Book {
+        int id PK
+        int bookclub_id FK
+        string title
+        string author
+        text description
+        string cover_image
+    }
+
+    ClubBooks {
+        int id PK
+        int club_id FK
+        int book_id FK
+        string status "TO_READ, READING, READ"
+        date start_date
+        date finish_date
+    }
+
+    Meeting {
+        int id PK
+        int club_id FK
+        string title
+        timestamp meeting_date
+        string location_or_link
+        text agenda
+    }
+
+    Rating {
+        int id PK
+        int book_id FK
+        int user_id FK
+        int score
+        text review
+        boolean public
+    }
+
+    User ||--o{ User_Club : "requests/joins"
+    Club ||--o{ User_Club : "has list of"
+    User ||--o{ Club : "manages (Owner)"
+    Club ||--o{ Book : "suggested list"
+    Club ||--o{ ClubBooks : "library"
+    Club ||--o{ Meeting : "schedules"
+    User ||--o{ Rating : "reviews"
+    Book ||--o{ Rating : "rated by"
 
 ## Front-end Implementation
 
-### Wireframes
+### Branding
 
-> [!NOTE]  
-> Insert image(s) of your wireframes (could be a photo of hand-drawn wireframes or a screenshot of wireframes created using a tool such as https://www.mockflow.com/).
+#### Fonts
 
-See all wireframes and how Admins, Approvers and Students would see the Win Wall website: https://www.figma.com/file/cvP0Kc7lAX39Fvo12C5aLa/Win-Wall?node-id=22%3A1345 
-
-#### Home Page
-![](./img/homepage.png)
-
-#### Collection List Page
-![](./img/listpage.png)
-
-> [!NOTE]  
-> etc...
-
-### Logo
-![](./img/logo.png)
-
-### Colours
-#### Primary
-
-![](./img/primary.png)
-
-#### Secondary
-
-![](./img/secondary.png)
-
-### Font
-
-(We will create a ‘highlight-text’ font style in CSS with the glow effect as per the above - to use on hero section)
-Raleway
-Google fonts:
+| Role | Font | Style |
+|------|------|-------|
+| Headings | [Lora](https://fonts.google.com/specimen/Lora) | Elegant serif with calligraphic roots. Literary and trustworthy. |
+| Body | [Nunito Sans](https://fonts.google.com/specimen/Nunito+Sans) | Clean, rounded sans-serif. Friendly and easy to read. |
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap');
-font-family: 'Raleway', sans-serif;
-```
-(When Raleway is not available the standard font to be used is the Calibri font family)
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Nunito+Sans:wght@300;400;500;600;700&display=swap');
 
-![](./img/fonts.png)
+font-family: 'Lora', serif;              /* Headings */
+font-family: 'Nunito Sans', sans-serif;   /* Body */
+```
+
+#### Colours
+
+**Primary**
+
+| Name | Hex | Preview | Usage |
+|------|-----|---------|-------|
+| Terracotta | `#C9624A` | 🟧 | Buttons, links, active states |
+| Terracotta Light | `#FBF0EC` | 🟨 | Hover states, tags, soft backgrounds |
+
+**Secondary**
+
+| Name | Hex | Preview | Usage |
+|------|-----|---------|-------|
+| Teal | `#5A8F8B` | 🟩 | Success states, progress indicators |
+| Teal Light | `#EBF4F3` | ⬜ | Status badges, secondary backgrounds |
+
+
+### Wireframes
+
+
