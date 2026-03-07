@@ -17,6 +17,9 @@ class CurrentUser(APIView):
             "id": request.user.id,
             "username": request.user.username,
             "email": request.user.email or "",
+            "profile_picture": request.user.profile_picture or "",
+            "bio": request.user.bio or "",
+            "date_joined": request.user.date_joined,
         })
 
 class CustomUserList(APIView):
@@ -76,4 +79,7 @@ class CustomAuthToken(ObtainAuthToken):
             "user_id": user.id,
             "username": user.username,
             "email": user.email or "",
+            "profile_picture": user.profile_picture or "",
+            "bio": user.bio or "",
+            "date_joined": user.date_joined,
         })
