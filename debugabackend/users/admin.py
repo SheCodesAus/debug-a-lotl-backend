@@ -1,8 +1,14 @@
+"""
+Django admin for users: list, search, filter, and edit CustomUser with profile fields.
+"""
 from django.contrib import admin
 from users.models import CustomUser
 
+
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
+    """Admin for CustomUser: profile (picture, bio), contact, and permissions."""
+
     list_display = ("username", "email", "date_joined")
     search_fields = ("username", "email")
     list_filter = ("date_joined",)

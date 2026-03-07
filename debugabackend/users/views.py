@@ -1,3 +1,12 @@
+"""
+User API: current user, list/create, detail, and token login.
+
+Endpoints:
+  GET/POST /users/         – list all users, create (register) a user
+  GET      /users/me/      – current authenticated user (requires token)
+  GET      /users/<pk>/    – public profile for a user by id
+Token auth is at POST /api-token-auth/ (see project urls).
+"""
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,6 +19,8 @@ from .serializers import CustomUserSerializer
 
 
 class CurrentUser(APIView):
+    """Return the currently authenticated user's profile (id, username, email, profile_picture, bio, date_joined)."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -22,7 +33,10 @@ class CurrentUser(APIView):
             "date_joined": request.user.date_joined,
         })
 
+
 class CustomUserList(APIView):
+    """List all users (GET) or register a new user (POST). No auth required for list/create."""
+
     def get(self, request):
         users = CustomUser.objects.all()
         serializer = CustomUserSerializer(users, many=True)
@@ -37,11 +51,14 @@ class CustomUserList(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(
-            serializer.errors, 
+            serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
 
+
 class CustomUserDetail(APIView):
+    """Public profile for a single user by primary key (read-only)."""
+
     def get_object(self, pk):
         try:
             return CustomUser.objects.get(pk=pk)
@@ -52,8 +69,16 @@ class CustomUserDetail(APIView):
         user = self.get_object(pk)
         serializer = CustomUserSerializer(user)
         return Response(serializer.data)
-    
+
+
 class CustomAuthToken(ObtainAuthToken):
+    """
+    Login: POST username + password; returns token and user info.
+
+    Response includes token (use in Authorization: Token <key>) plus user_id, username,
+    email, profile_picture, bio, date_joined. Rejects inactive or invalid accounts.
+    """
+
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(
             data=request.data,
@@ -62,6 +87,7 @@ class CustomAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
+        # Block disabled or invalid accounts.
         if not user.is_active:
             return Response(
                 {"detail": "This account is disabled."},
