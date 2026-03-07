@@ -1,8 +1,10 @@
-<img src="./debug-a-lotl-backend\img\logo1.png">
+<img src="./img/logo1.png" width="100" height="100">
+
+
 
 > Open Book
 
-**A web platform for book clubs to organize, read, and grow together.**
+**A web platform for book clubs to organise, read, and grow together.**
 
 > Built with Django REST Framework (Back-End) and React (Front-End)
 
@@ -40,11 +42,13 @@
 
 Open Book is an all-in-one platform designed to simplify and enrich the book club experience. It replaces the scattered mix of group chats, spreadsheets, and calendar invites with a single, purpose-built space where readers can organise clubs, vote on what to read next, track their progress through a book, hold meaningful discussions chapter by chapter, and schedule meetings with integrated RSVP.
 
-Whether it's a small group of friends or a larger community of readers, Open Book gives both organisers and members the tools to keep their book club active, structured, and engaging — without the usual coordination headaches.
+Whether it's a small group of friends or a larger community of readers, Open Book gives both organisers and members the tools to keep their book club active, structured, and engaging; without the usual coordination headaches. 
+
+#### Currently in MVP stage 
 
 ## Target Users
 
-NAME serves two primary user groups:
+Open Book serves two primary user groups:
 
 **Book Club Owners** are the people who take the initiative to bring readers together. They need tools to create and manage clubs, schedule meetings, open voting rounds, set reading milestones, and moderate discussions. Open Book gives them a centralised dashboard to handle all of this without juggling multiple apps.
 
@@ -168,135 +172,67 @@ Open Book allows users to create or join book clubs, suggest and vote on books, 
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| POST | `/api-token-auth/` | Sign up to app | `{"email", "username", "password"}` | 200 | None |
+| POST | `/api-token-auth/` | Sign up to app | `{"email", "username", "password"}` | 201 | None |
 | POST | `/users/` | Log in to app | `{"password", "user_name"}` | 201 | Users |
 
 #### Users
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| POST | `/users/{id}/` | Create a user profile | `{"name", "image", "meeting_type", "location", "genre"}` | 201 | Users |
+| GET | `/users/{id}/` | Get current user's profile | — | 200 | Users |
+| POST | `/users/{id}/` | Create a profile | `{"name", "image", "meeting_type", "location", "genre"}` | 201 | Users |
 | PUT | `/users/{id}/` | Update user profile | `{"name", "image", "meeting_type", "location", "genre"}` | 201 | Users |
 
 #### Clubs
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| GET | `/clubs/` | Retrieve a list of book clubs | — | 200 | All |
+| GET | `/clubs/` | Retrieve a list of all book clubs | — | 200 | All |
 | POST | `/clubs/` | Create a new book club | `{"name", "description", "banner_image", "created_at", "is_public", "meeting_type", "location", "status"}` | 201 | Users |
-| GET | `/clubs/{id}/` | Display club book history | — | 200 | Club members |
+| GET | `/clubs/{id}/` | Get details of a club | — | 200 | Users |
 | PUT | `/clubs/{id}/` | Update the club details | `{"name", "description", "banner_image", "created_at", "is_public", "meeting_type", "location", "status"}` | 201 | Organiser |
-| PATCH | `/clubs/{id}/` | Change the club status to inactive | `{"status"}` | 201 | Organiser |
-| PATCH | `/clubs/{id}/` | Change club book status (to read, reading, read) | `{"status"}` | 201 | Organiser |
-
-#### Books
-
-| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
-|-------------|-----|---------|--------------|:------------:|------|
-| POST | `/clubs/{id}/` | Upload a book to the club (retrieve from Google Books) | — | 200 | Organiser |
+| PATCH | `/clubs/{id}/` | Change the club status to inactive or active | `{"status"}` | 201 | Organiser |
 
 #### Members
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| GET | `/members/` | Retrieve a list of members of a book club | — | 200 | Organiser |
-| POST | `/members/` | Join a book club | — | 201 | Users |
+| GET | `/clubs/{id}/members/` | Retrieve a list of members and pending members for a book club | — | 200 | Organiser |
+| POST | `/clubs/{id}/members/` | Join a book club | `{"user_id", "requested_at", "status"}` | 201 | Users |
+| PATCH | `/clubs/{id}/members/{id}/` | Respond to a membership request (Accept / Decline) | `{"status"}` | 201 | Organiser |
+
+#### Club Books
+
+| HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
+|-------------|-----|---------|--------------|:------------:|------|
+| GET | `/clubs/{id}/clubbooks/` | Display club book history | — | 200 | Club members |
+| POST | `/clubs/{id}/clubbooks/` | Upload a book to the club (retrieve from Google Books) | `{"name", "description", "cover_image", "book_url", "status"}` | 201 | Organiser |
+| PATCH | `/clubs/{id}/clubbooks/{id}/` | Change club book status (to read, reading, read) | `{"status"}` | 201 | Organiser |
 
 #### Meetings
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| POST | `/clubs/{id}/` | Schedule a meeting | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
-| PUT | `/clubs/{id}/` | Update meeting details | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
-| POST | `/clubs/{id}/` | Join a meeting | — | 201 | Members |
-| POST | `/meetings/{id}/` | Schedule a meeting | `{"date-time", "meeting_type", "location"}` | 201 | Organiser |
-| PUT | `/meetings/{id}/` | Update meeting details | `{"date-time", "meeting_type", "location"}` | 201 | Organiser |
-| POST | `/meetings/{id}/` | Join a meeting | — | 201 | Members |
+| POST | `/clubs/{id}/meetings/` | Schedule a meeting | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
+| PUT | `/clubs/{id}/meetings/{id}/` | Update meeting details | `{"title", "description", "date-time", "duration", "meeting_type", "location"}` | 201 | Organiser |
+| POST | `/clubs/{id}/meetings/{id}/` | Register to join a meeting | `{"member_id", "registered_at"}` | 201 | Members |
 
 #### Announcements
 
 | HTTP Method | URL | Purpose | Request Body | Success Code | Auth |
 |-------------|-----|---------|--------------|:------------:|------|
-| POST | `/clubs/{id}/` | Add a message to the announcement thread | `{"message", "created_at"}` | 201 | Organiser |
+| GET | `/clubs/{id}/announcements/` | List all announcements for the club | — | 200 | Club members |
+| POST | `/clubs/{id}/announcements/` | Create a new announcement | `{"message", "created_at"}` | 201 | Organiser |
+
 
 ### Database Schema
 
-Schema: 
-erDiagram
+#### Schema: 
 
-    User {
-        int id PK
-        string username
-        string email
-        string password
-        string profile_picture
-        text bio
-        timestamp date_joined
-    }
 
-    Club {
-        int id PK
-        string name
-        text description
-        string banner_image
-        int created_by FK
-        int current_book_id FK
-        timestamp created_at
-    }
+<img src="./img/schemas.png">
 
-    User_Club {
-        int id PK
-        int user_id FK
-        int bookclub_id FK
-        string role "Owner, Member"
-        string status "Pending, Approved, Rejected"
-        timestamp joined_at
-    }
 
-    Book {
-        int id PK
-        int bookclub_id FK
-        string title
-        string author
-        text description
-        string cover_image
-    }
-
-    ClubBooks {
-        int id PK
-        int club_id FK
-        int book_id FK
-        string status "TO_READ, READING, READ"
-        date start_date
-        date finish_date
-    }
-
-    Meeting {
-        int id PK
-        int club_id FK
-        string title
-        timestamp meeting_date
-        string location_or_link
-        text agenda
-    }
-
-    Rating {
-        int id PK
-        int book_id FK
-        int user_id FK
-        int score
-        text review
-        boolean public
-    }
-
-    User ||--o{ User_Club : "requests/joins"
-    Club ||--o{ User_Club : "has list of"
-    User ||--o{ Club : "manages (Owner)"
-    Club ||--o{ Book : "suggested list"
-    Club ||--o{ ClubBooks : "library"
-    Club ||--o{ Meeting : "schedules"
-    User ||--o{ Rating : "reviews"
-    Book ||--o{ Rating : "rated by"
 
 ## Front-end Implementation
 
@@ -335,4 +271,4 @@ font-family: 'Nunito Sans', sans-serif;   /* Body */
 
 ### Wireframes
 
-
+<img src="./img/wireframes.png">
