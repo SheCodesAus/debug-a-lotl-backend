@@ -1,9 +1,8 @@
 from django.urls import path
 from . import views
 
-# User endpoints: list/create, current user (me), and public profile by pk.
+# User endpoints: register and current authenticated user profile.
 urlpatterns = [
-    path("users/", views.CustomUserList.as_view()),
+    path("users/", views.RegisterUser.as_view()),
     path("users/me/", views.CurrentUser.as_view()),
-    path("users/<int:pk>/", views.CustomUserDetail.as_view()),
 ]
