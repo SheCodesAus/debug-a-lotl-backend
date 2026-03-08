@@ -1,27 +1,45 @@
 """
-User serializers for registration and profile API.
-
-CustomUserSerializer: full profile fields; password write-only, date_joined read-only.
+User serializers for registration and private profile API.
 """
 from rest_framework import serializers
 from .models import CustomUser
 
 
-class CustomUserSerializer(serializers.ModelSerializer):
-    """
-    Serialize CustomUser for list/detail and for registration (POST).
-
-    Exposes all model fields; password is write-only and date_joined is set by the server.
-    """
+class RegisterSerializer(serializers.ModelSerializer):
+    """Serializer for account registration."""
 
     class Meta:
         model = CustomUser
-        fields = '__all__'
-        # Never return password in API responses.
-        extra_kwargs = {'password': {'write_only': True}}
-        # Set automatically on create; not editable via API.
-        read_only_fields = ('date_joined',)
+        fields = [
+            "id",
+            "username",
+            "email",
+            "password",
+            "profile_picture",
+            "bio",
+            "date_joined",
+        ]
+        extra_kwargs = {
+            "password": {"write_only": True},
+        }
+        read_only_fields = ["id", "date_joined"]
 
     def create(self, validated_data):
         """Use create_user so password is hashed correctly."""
         return CustomUser.objects.create_user(**validated_data)
+
+
+class MeSerializer(serializers.ModelSerializer):
+    """Serializer for authenticated user's own profile."""
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id",
+            "username",
+            "email",
+            "profile_picture",
+            "bio",
+            "date_joined",
+        ]
+        read_only_fields = ["id", "date_joined"]
