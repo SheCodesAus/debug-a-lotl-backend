@@ -18,30 +18,21 @@ class ClubSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "banner_image",
-            "created_by",
-            "current_book_id",
-            "created_at",
+            "owner",
             "is_public",
-            "meeting_type",
-            "location",
+            "max_members",
+            "club_meeting_mode",
+            "club_location",
+            "created_at",
         ]
-        read_only_fields = ["id", "created_by", "created_at"]
-
-    def validate(self, data):
-        """Require location when meeting type is in-person."""
-        if data.get("meeting_type") == Club.MEETING_IN_PERSON:
-            if not (data.get("location") or "").strip():
-                raise serializers.ValidationError(
-                    {"location": "Location is required when the club meets in person."}
-                )
-        return data
+        read_only_fields = ["id", "owner", "created_at"]
 
     def create(self, validated_data):
         """Set creator from request and create an Owner UserClub row (one owner per club)."""
-        validated_data["created_by"] = self.context["request"].user
+        validated_data["owner"] = self.context["request"].user
         club = super().create(validated_data)
         UserClub.objects.create(
-            user=club.created_by,
+            user=club.owner,
             club=club,
             role=UserClub.ROLE_OWNER,
             status=UserClub.STATUS_APPROVED,
