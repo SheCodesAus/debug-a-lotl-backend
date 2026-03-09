@@ -1,10 +1,10 @@
 """
-User API: registration, current user profile, and token login.
+User API: registration, user profile by id, and token login.
 
 Endpoints:
   POST /users/            - register a user
-  GET  /users/me/         - current authenticated user profile
-  PATCH /users/me/        - update current authenticated user profile
+  GET  /users/{id}/       - get user profile (authenticated user's own only)
+  PUT  /users/{id}/       - update user profile (authenticated user's own only)
 Token auth is at POST /api-token-auth/ (see project urls).
 """
 from rest_framework.views import APIView
@@ -29,16 +29,33 @@ class RegisterUser(APIView):
 
 
 class CurrentUser(APIView):
-    """Get and update the currently authenticated user's profile."""
+    """Get and update a user's profile by id (own profile only)."""
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        serializer = MeSerializer(request.user)
+    def _get_user_or_403(self, request, id):
+        if request.user.id != id:
+            return None
+        return request.user
+
+    def get(self, request, id):
+        user = self._get_user_or_403(request, id)
+        if user is None:
+            return Response(
+                {"detail": "You may only access your own profile."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = MeSerializer(user)
         return Response(serializer.data)
 
-    def patch(self, request):
-        serializer = MeSerializer(request.user, data=request.data, partial=True)
+    def put(self, request, id):
+        user = self._get_user_or_403(request, id)
+        if user is None:
+            return Response(
+                {"detail": "You may only update your own profile."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = MeSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
