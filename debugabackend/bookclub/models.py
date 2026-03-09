@@ -162,6 +162,8 @@ class ClubBook(models.Model):
     added_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="club_books_added")
     google_books_id = models.CharField(max_length=100, blank=True)
     title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    cover_image= models.URLField(max_length=500, blank=True)
     author = models.CharField(max_length=255, blank=True)
     isbn = models.CharField(max_length=30, blank=True)
     genre = models.CharField(max_length=255, blank=True)
