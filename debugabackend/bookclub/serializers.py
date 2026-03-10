@@ -5,7 +5,7 @@ When a user creates a club, they are set as created_by and we create a UserClub
 row with role=owner, status=approved so there is exactly one owner per club.
 """
 from rest_framework import serializers
-from .models import Club, UserClub
+from .models import Club, Member
 
 
 class ClubSerializer(serializers.ModelSerializer):
@@ -25,16 +25,8 @@ class ClubSerializer(serializers.ModelSerializer):
             "club_location",
             "created_at",
         ]
-        read_only_fields = ["id", "owner", "created_at"]
+        read_only_fields = ["id","owner", "created_at"]
 
     def create(self, validated_data):
-        """Set creator from request and create an Owner UserClub row (one owner per club)."""
         validated_data["owner"] = self.context["request"].user
-        club = super().create(validated_data)
-        UserClub.objects.create(
-            user=club.owner,
-            club=club,
-            role=UserClub.ROLE_OWNER,
-            status=UserClub.STATUS_APPROVED,
-        )
-        return club
+        return super().create(validated_data)
