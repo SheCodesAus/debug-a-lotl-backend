@@ -10,10 +10,20 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+# Load environment variables from a .env file (e.g. GOOGLE_BOOKS_API_KEY) so we don't need to export them in the shell.
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env from the backend repo root. Variables like GOOGLE_BOOKS_API_KEY are then available via os.environ.
+load_dotenv(BASE_DIR.parent / ".env")
+
+# Google Books API key (for server-side book search). Set in .env or environment.
+GOOGLE_BOOKS_API_KEY = os.environ.get("GOOGLE_BOOKS_API_KEY", "")
 
 
 # Quick-start development settings - unsuitable for production
