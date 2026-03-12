@@ -1,7 +1,11 @@
 from django.urls import path
-from . import views
+from .views import ClubListCreate, MeetingListCreate, AnnouncementListCreate
 
 urlpatterns = [
+    path('clubs/', ClubListCreate.as_view(), name='club-list'),
+    path('clubs/<int:club_id>/meetings/', MeetingListCreate.as_view(), name='meeting-list'),
+    path('clubs/<int:club_id>/announcements/', AnnouncementListCreate.as_view(), name='announcement-list'),
+]
     path("clubs/", views.ClubListCreate.as_view()),
     path("clubs/<int:pk>/", views.ClubDetail.as_view()),
     path("clubs/<int:pk>/join/", views.ClubJoinView.as_view()),
