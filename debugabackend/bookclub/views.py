@@ -4,13 +4,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q
-from .models import Meeting, AnnouncementThread, Club
-from .serializers import ClubSerializer, MeetingSerializer, AnnouncementThreadSerializer
+from .models import Meeting, AnnouncementThread, Club, Member
+from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer)
 from .permissions import IsOwnerOrReadOnly
 
-from .models import Club, Member
-from .serializers import ClubSerializer, MemberSerializer
 
 
 class ClubListCreate(APIView):
@@ -80,6 +77,7 @@ class AnnouncementListCreate(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(club=club)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
 class ClubDetail(APIView):
     permission_classes = AllowAny
 
@@ -90,7 +88,7 @@ class ClubDetail(APIView):
             if not request.user.is_authenticated:
                 return Response(
                     {"detail": "Authentication required for private clubs."},
-                    status = status.HTTP_401_UNATHORIZED,
+                    status = status.HTTP_401_UNAUTHORIZED,
                 )
             is_approved_member = Member.objects.filter(
                 club=club,
@@ -132,46 +130,43 @@ class ClubJoinView(APIView):
         serializer = MemberSerializer(member)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    class ClubMembersView(APIView):
-        permission_classes = [IsAuthenticated]
+class ClubMembersView(APIView):
+    permission_classes = [IsAuthenticated]
 
-        def get(self, request, pk):
-            club = get_object_or_404(Club, pk=pk)
+    def get(self, request, pk):
+        club = get_object_or_404(Club, pk=pk)
             
-            if request.user != club.owner:
-                return Response(
-                    {"detail": "Only the club owner can view members"},
-                    status=status.HTTP_403_FORBIDENN,
-                )
-            members = club.memberships.all()
-            serializer = MemberSerializer(members, many=True)
-            return Response(serializer.data)
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the club owner can view members"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        members = club.memberships.all()
+        serializer = MemberSerializer(members, many=True)
+        return Response(serializer.data)
         
-    class MemberStatusUpdateView(APIView):
-        permission_classes = [IsAuthenticated]
-        def patch(self, request, club_pk, member_pk):
-            club = get_object_or_404(Club, pk=club_pk)
+class MemberStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    def patch(self, request, club_pk, member_pk):
+        club = get_object_or_404(Club, pk=club_pk)
 
-            if request.user != club.owner:
-                return Response (
-                    {"detail":"Only the club owner can approve or reject members."},
-                    status=status.HTTP_403_FORBIDENN,
-                )
-            member=get_object_or_404(Member, pk=member_pk, club=club)
+        if request.user != club.owner:
+            return Response (
+                {"detail":"Only the club owner can approve or reject members."},
+                status=status.HTTP_403_FORBIDENN,
+            )
+        member=get_object_or_404(Member, pk=member_pk, club=club)
 
-            new_status = request.data.get("status")
-            if new_status not in [
-                Member.STATUS_APPROVED,
-                Member.STATUS_REJECTED,
-            ]:
-                return Response(
-                    {"detail":"Status must be approved or rejected"},
-                    status=status.HTPP_400_BAD_REQUEST,
-                )
-            member.status=new_status
-            member.save()
-            serializer = MemberSerializer(member)
-            return Response(serializer.data)
-    
-
-        
+        new_status = request.data.get("status")
+        if new_status not in [
+            Member.STATUS_APPROVED,
+            Member.STATUS_REJECTED,
+        ]:
+            return Response(
+                {"detail":"Status must be approved or rejected"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        member.status=new_status
+        member.save()
+        serializer = MemberSerializer(member)
+        return Response(serializer.data)

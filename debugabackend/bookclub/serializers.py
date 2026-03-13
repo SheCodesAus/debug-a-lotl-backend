@@ -76,21 +76,6 @@ class ClubBookSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'added_at', 'club']
 
-class UserClubSerializer(serializers.ModelSerializer):
-    # We include 'user' and 'club' details so the frontend knows who/what this is
-    username = serializers.ReadOnlyField(source='user.username')
-    club_name = serializers.ReadOnlyField(source='club.name')
-
-    class Meta:
-        model = Member
-        fields = ['id', 'user', 'username', 'club', 'club_name', 'status', 'joined_at']
-        read_only_fields = ['id', 'joined_at', 'user', 'club']
-
-
-
-
-
-
 class MemberSerializer(serializers.ModelSerializer):
     #Expose basic user info for member list
     username = serializers.ReadOnlyField(source="user.username")
