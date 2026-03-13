@@ -12,6 +12,8 @@ class ClubSerializer(serializers.ModelSerializer):
 #Show owner user name in response without allowing clients to set it
 
     owner_name = serializers.ReadOnlyField(source = "owner.name")
+    member_count = serializers.SerializerMethodField()
+    spots_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = Club
@@ -26,20 +28,36 @@ class ClubSerializer(serializers.ModelSerializer):
             "max_members",
             "club_meeting_mode",
             "club_location",
+            "member_count",
+            "spots_remaining",
             "created_at",
         ]
-        read_only_fields = ["id","owner","owner_name", "created_at"]
+        read_only_fields = ["id","owner","owner_name", "member_count", "spots_remaining", "created_at"]
 
+    def get_member_count(self,obj):
+        #Count approved members for private clubs
+        return obj.memberships.filter(status=Member.STATUS_APPROVED).count()
+    
+    def get_spots_remaining(self,obj):
+        #if there is no max_members limit, return none
+        if obj.max_members is None:
+            return None
+        
+        approved_count = obj.memberships.filter(
+            status=Member.STATUS_APPROVED).count()
+        remaining = obj.max_members - approved_count
+        return max(remaining, 0)
+    
     def create(self, validated_data):
         # The logged-in user becomes the club owner automatically.
         validated_data["owner"] = self.context["request"].user
         club = super().create(validated_data)
 
-        Member.objects.create(
-            user=validated_data["owner"],
-            club=club,
-            status=Member.STATUS_APPROVED 
-        )
+##        Member.objects.create(
+##            user=validated_data["owner"],
+##            club=club,
+##            status=Member.STATUS_APPROVED 
+##        )
         return club
     
 

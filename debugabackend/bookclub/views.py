@@ -14,11 +14,24 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Meeting, AnnouncementThread, Club, Member
-from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer)
+from .models import Meeting, AnnouncementThread, Club, Member, ClubBook
+from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer, ClubBookSerializer)
 from .permissions import IsOwnerOrReadOnly
 
 
+#fuction to centralise club visibility rule
+# public clubs are open, private clubs are visible only to owners and approved members
+def can_view_club_content(user, club):
+    if club.is_public:
+        return True
+    if not user.is_authenticated:
+        return False
+    if user == club.owner:
+        return True
+    return Member.objects.filter(
+        club=club,
+        user=user,
+        status=Member.STATUS_APPROVED,).exists()
 
 class ClubListCreate(APIView):
     def get_permissions(self):
@@ -111,10 +124,26 @@ class BookSearch(APIView):
         return Response(results, status=status.HTTP_200_OK)
     
 class MeetingListCreate(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        return [AllowAny()]
 
     def get(self, request, club_id):
-        meetings = Meeting.objects.filter(club_id=club_id)
+        club = get_object_or_404(Club, pk=club_id)
+
+        if not can_view_club_content(request.user, club):
+            if not request.user.is_authenticated:
+                return Response(
+                    {"detail": "Authentication required for private club content."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            return Response(
+                {"detail": "You do not have permission to view these meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        meetings = Meeting.objects.filter(club=club)
         serializer = MeetingSerializer(meetings, many=True)
         return Response(serializer.data)
 
@@ -130,19 +159,30 @@ class MeetingListCreate(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class AnnouncementListCreate(APIView):
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, club_id):
-        announcements = AnnouncementThread.objects.filter(club_id=club_id)
+        club = get_object_or_404(Club, pk=club_id)
+
+        if not can_view_club_content(request.user, club):
+            return Response(
+                {"detail": "You do not have permission to view these announcements."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        announcements = AnnouncementThread.objects.filter(club=club)
         serializer = AnnouncementThreadSerializer(announcements, many=True)
         return Response(serializer.data)
 
     def post(self, request, club_id):
-        club = Club.objects.get(pk=club_id)
-        # Check if the person posting is the owner
-        if club.owner != request.user:
-            return Response({"detail": "Only the owner can post announcements."}, status=status.HTTP_403_FORBIDDEN)
-        
+        club = get_object_or_404(Club, pk=club_id)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can post announcements."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = AnnouncementThreadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(club=club)
@@ -154,23 +194,16 @@ class ClubDetail(APIView):
     def get(self, request, pk):
         club = get_object_or_404(Club, pk=pk)
         # Private clubs should only be visible to owner or approved members.
-        if not club.is_public:
+        if not can_view_club_content(request.user, club):
             if not request.user.is_authenticated:
                 return Response(
                     {"detail": "Authentication required for private clubs."},
-                    status = status.HTTP_401_UNAUTHORIZED,
+                    status=status.HTTP_401_UNAUTHORIZED,
                 )
-            is_approved_member = Member.objects.filter(
-                club=club,
-                user=request.user,
-                status=Member.STATUS_APPROVED,
-            ).exists()
-
-            if request.user != club.owner and not is_approved_member:
-                return Response(
-                    {"detail": "You do not have permissions to view this club"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            return Response(
+                {"detail": "You do not have permission to view this club."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = ClubSerializer(club)
         return Response(serializer.data)
 
@@ -266,3 +299,91 @@ class MeetingAttendanceView(APIView):
         serializer.save()
         
         return Response({"detail": "You're booked for this meeting!"}, status=status.HTTP_201_CREATED)
+
+class ClubBookListCreateView:
+        def get_permissions(self):
+            if self.request.method == "POST":
+                return [IsAuthenticated()]
+            return [AllowAny()]
+        
+        def get(self, request, club_id):
+            club = get_object_or_404(Club, pk=club_id)
+
+            if not can_view_club_content(request.user, club):
+                if not request.user.is_authenticated:
+                    return Response(
+                        {"detail": "Authentication required for private club content."},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+                return Response(
+                    {"detail": "You do not have permission to view these books."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            books = ClubBook.objects.filter(club=club)
+            serializer = ClubBookSerializer(books, many=True)
+            return Response(serializer.data)
+            
+        def post(self, request, club_id):
+            club=get_object_or_404(Club, pk=club_id)
+
+            if request.user != club.owner:
+                return Response(
+                    {"detail": "Only the owner can add books."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            serializer = ClubBookSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(club=club)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+class ClubBookDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method in ["PATCH", "DELETE"]:
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get(self, request, club_id, book_id):
+        club = get_object_or_404(Club, pk=club_id)
+        book = get_object_or_404(ClubBook, pk=book_id, club=club)
+
+        if not can_view_club_content(request.user, club):
+            if not request.user.is_authenticated:
+                return Response(
+                    {"detail": "Authentication required for private club content."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            return Response(
+                {"detail": "You do not have permission to view this book."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = ClubBookSerializer(book)
+        return Response(serializer.data)
+
+    def patch(self, request, club_id, book_id):
+        club = get_object_or_404(Club, pk=club_id)
+        book = get_object_or_404(ClubBook, pk=book_id, club=club)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can edit books."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = ClubBookSerializer(book, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, club_id, book_id):
+        club = get_object_or_404(Club, pk=club_id)
+        book = get_object_or_404(ClubBook, pk=book_id, club=club)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can delete books."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        book.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
