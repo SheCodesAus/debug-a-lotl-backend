@@ -33,7 +33,14 @@ class ClubSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # The logged-in user becomes the club owner automatically.
         validated_data["owner"] = self.context["request"].user
-        return super().create(validated_data)
+        club = super().create(validated_data)
+
+        Member.objects.create(
+            user=validated_data["owner"],
+            club=club,
+            status=Member.STATUS_APPROVED 
+        )
+        return club
     
 
 class MeetingAttendanceSerializer(serializers.ModelSerializer):
