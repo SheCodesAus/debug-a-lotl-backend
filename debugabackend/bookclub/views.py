@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Meeting, AnnouncementThread, Club, Member
-from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer)
+from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer)
 from .permissions import IsOwnerOrReadOnly
 
 
@@ -240,3 +240,29 @@ class MemberStatusUpdateView(APIView):
         member.save()
         serializer = MemberSerializer(member)
         return Response(serializer.data)
+
+class MeetingAttendanceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, meeting_id):
+        meeting = get_object_or_404(Meeting, pk=meeting_id)
+        
+        # 1. User needs to be member of the club
+        member = Member.objects.filter(
+            user=request.user, 
+            club=meeting.club, 
+            status=Member.STATUS_APPROVED
+        ).first()
+
+        if not member:
+            return Response(
+                {"detail": "You must be an approved member of this club to join the meeting."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2.Creation and duplicate check
+        serializer = MeetingAttendanceSerializer(data={'meeting': meeting.id, 'member': member.id})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
+        return Response({"detail": "You're booked for this meeting!"}, status=status.HTTP_201_CREATED)
