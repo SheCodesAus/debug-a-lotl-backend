@@ -5,11 +5,13 @@ When a user creates a club, they are set as created_by and we create a UserClub
 row with role=owner, status=approved so there is exactly one owner per club.
 """
 from rest_framework import serializers
-from .models import Club, Member
+from .models import Club, Member, ClubBook, Meeting, MeetingAttendance, AnnouncementThread
 
 
 class ClubSerializer(serializers.ModelSerializer):
-    """Serialize Club for list and create. On create, creator becomes the sole owner via UserClub."""
+#Show owner user name in response without allowing clients to set it
+
+    owner_name = serializers.ReadOnlyField(source = "owner.name")
 
     class Meta:
         model = Club
@@ -19,14 +21,66 @@ class ClubSerializer(serializers.ModelSerializer):
             "description",
             "banner_image",
             "owner",
+            "owner_name",
             "is_public",
             "max_members",
             "club_meeting_mode",
             "club_location",
             "created_at",
         ]
-        read_only_fields = ["id","owner", "created_at"]
+        read_only_fields = ["id","owner","owner_name", "created_at"]
 
     def create(self, validated_data):
+        # The logged-in user becomes the club owner automatically.
         validated_data["owner"] = self.context["request"].user
         return super().create(validated_data)
+    
+
+class MeetingAttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MeetingAttendance
+        fields = ['id', 'meeting', 'member', 'booked_at']
+        read_only_fields = ['id', 'booked_at']
+
+    def validate(self, data):
+        # Prevent double boking
+        if MeetingAttendance.objects.filter(meeting=data['meeting'], member=data['member']).exists():
+            raise serializers.ValidationError("This member is already booked for this meeting.")
+        return data
+    
+class MeetingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Meeting
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'club']
+
+    def validate(self, data):
+        # Move the rules here!
+        if data.get('end_time') <= data.get('start_time'):
+            raise serializers.ValidationError({"end_time": "End time must be after start time."})
+        
+        if data.get('meeting_type') == 'in_person' and not data.get('location'):
+            raise serializers.ValidationError({"location": "Location required for in-person meetings."})
+        return data
+
+
+class AnnouncementThreadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnnouncementThread
+        fields = ['id', 'club', 'title', 'message', 'sent_at']
+        read_only_fields = ['id', 'sent_at']
+
+class ClubBookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClubBook
+        fields = '__all__'
+        read_only_fields = ['id', 'added_at', 'club']
+
+class MemberSerializer(serializers.ModelSerializer):
+    #Expose basic user info for member list
+    username = serializers.ReadOnlyField(source="user.username")
+
+    class Meta:
+        model = Member
+        fields = [ "id", "user", "username", "club", "status" , "joined_at"]
+        read_only_fields = ["id", "user", "username", "club", "joined_at"]
