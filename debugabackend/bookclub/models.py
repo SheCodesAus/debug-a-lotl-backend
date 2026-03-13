@@ -142,7 +142,6 @@ class MeetingAttendance(models.Model):
     member = models.ForeignKey(
         "Member",
         on_delete=models.CASCADE,
-        null=True, blank=True,
         related_name="meeting_bookings",
     )
     booked_at = models.DateTimeField(auto_now_add=True)
