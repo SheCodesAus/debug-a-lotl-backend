@@ -1,0 +1,1 @@
+# Empty - AnnouncementThread is defined in bookclub/models.py
