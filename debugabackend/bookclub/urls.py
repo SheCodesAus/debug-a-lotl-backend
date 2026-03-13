@@ -10,6 +10,6 @@ urlpatterns = [
     path("clubs/<int:pk>/members/", views.ClubMembersView.as_view()),
     path(
         "clubs/<int:club_pk>/members/<int:member_pk>/",
-        views.MemberStatusUpdateView.as_view(),
-    ),
+        views.MemberStatusUpdateView.as_view(),),
+    path('meetings/<int:meeting_id>/attend/', views.MeetingAttendanceView.as_view(), name='attend-meeting')
 ]

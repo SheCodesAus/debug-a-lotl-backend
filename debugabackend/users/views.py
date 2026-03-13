@@ -76,6 +76,7 @@ class CustomAuthToken(ObtainAuthToken):
             "token": token.key,
             "user_id": user.id,
             "username": user.username,
+            "name": user.name,
             "email": user.email or "",
             "profile_picture": user.profile_picture or "",
             "bio": user.bio or "",

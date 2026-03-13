@@ -13,6 +13,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
+            "name",
             "email",
             "password",
             "profile_picture",
@@ -37,6 +38,7 @@ class MeSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
+            "name",
             "email",
             "profile_picture",
             "bio",
