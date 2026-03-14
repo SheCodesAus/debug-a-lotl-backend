@@ -9,29 +9,30 @@ from urllib.request import urlopen, URLError
 # GOOGLE_BOOKS_API_KEY is read from here for the BookSearch proxy.
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Meeting, AnnouncementThread, Club, Member, ClubBook
 from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer, ClubBookSerializer)
-from .permissions import IsOwnerOrReadOnly
 
 
 #fuction to centralise club visibility rule
-# public clubs are open, private clubs are visible only to owners and approved members
-def can_view_club_content(user, club):
-    if club.is_public:
-        return True
+#general club details visible to everyone, but meetings/announcement restricted to only owner and member
+def is_club_owner(user,club):
+    return user.is_authenticated and user == club.owner
+
+def is_approved_member(user, club):
     if not user.is_authenticated:
         return False
-    if user == club.owner:
-        return True
     return Member.objects.filter(
         club=club,
         user=user,
         status=Member.STATUS_APPROVED,).exists()
+
+def can_view_member_content(user, club):
+    return is_club_owner(user,club) or is_approved_member(user,club)
+
 
 class ClubListCreate(APIView):
     def get_permissions(self):
@@ -40,21 +41,8 @@ class ClubListCreate(APIView):
         return [AllowAny()]
 
     def get(self, request):
-        if request.user.is_authenticated:
-         # Authenticated users can see:
-            # - public clubs
-            # - clubs they own
-            # - clubs where they are approved members
-            clubs = Club.objects.filter(
-                Q(is_public=True) |
-                Q(owner=request.user) |
-                Q(memberships__user=request.user, memberships__status = Member.STATUS_APPROVED)
-            ).distinct()
-        else:
-            # Anonymous users only see public clubs
-            clubs = Club.objects.filter(is_public=True)
-
-        serializer = ClubSerializer(clubs, many=True)
+        clubs = Club.objects.all()
+        serializer = ClubSerializer(clubs, many=True, context={"request": request})
         return Response(serializer.data)
 
     def post(self, request):
@@ -63,148 +51,13 @@ class ClubListCreate(APIView):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
-class BookSearch(APIView):
-    """Proxy to Google Books API. Requires GOOGLE_BOOKS_API_KEY in env."""
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        q = (request.GET.get("q") or "").strip()
-        if not q:
-            return Response([], status=status.HTTP_200_OK)
-
-        api_key = getattr(settings, "GOOGLE_BOOKS_API_KEY", "") or ""
-        if not api_key:
-            return Response(
-                {"error": "Google Books API key not configured (GOOGLE_BOOKS_API_KEY)."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        encoded_q = quote_plus(q)
-        url = (
-            f"https://www.googleapis.com/books/v1/volumes"
-            f"?q={encoded_q}&maxResults=20&printType=books&key={quote_plus(api_key)}"
-        )
-        try:
-            with urlopen(url, timeout=10) as resp:
-                data = json.loads(resp.read().decode())
-        except HTTPError as e:
-            try:
-                body = e.fp.read().decode() if e.fp else ""
-            except Exception:
-                body = ""
-            try:
-                err_data = json.loads(body)
-                msg = err_data.get("error", {}).get("message", body or str(e))
-            except json.JSONDecodeError:
-                msg = body or str(e)
-            return Response(
-                {"error": "Google Books API error.", "detail": msg},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-        except (URLError, OSError, json.JSONDecodeError) as e:
-            return Response(
-                {"error": "Error calling Google Books API.", "detail": str(e)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        items = data.get("items") or []
-        results = []
-        for item in items:
-            vi = item.get("volumeInfo") or {}
-            links = vi.get("imageLinks") or {}
-            results.append({
-                "google_books_id": item.get("id"),
-                "title": vi.get("title") or "Untitled",
-                "author": ", ".join(vi.get("authors") or ["Unknown author"]),
-                "description": vi.get("description") or "",
-                "cover_image": links.get("thumbnail") or links.get("smallThumbnail") or "",
-                "published_date": vi.get("publishedDate"),
-            })
-        return Response(results, status=status.HTTP_200_OK)
-    
-class MeetingListCreate(APIView):
-    def get_permissions(self):
-        if self.request.method == "POST":
-            return [IsAuthenticated()]
-        return [AllowAny()]
-
-    def get(self, request, club_id):
-        club = get_object_or_404(Club, pk=club_id)
-
-        if not can_view_club_content(request.user, club):
-            if not request.user.is_authenticated:
-                return Response(
-                    {"detail": "Authentication required for private club content."},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            return Response(
-                {"detail": "You do not have permission to view these meetings."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
-        meetings = Meeting.objects.filter(club=club)
-        serializer = MeetingSerializer(meetings, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, club_id):
-        club = Club.objects.get(pk=club_id)
-        # Check if user is owner before allowing meeting creation
-        if club.owner != request.user:
-            return Response({"detail": "Only the owner can create meetings."}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = MeetingSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(club=club) # Automatically link to the club
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-class AnnouncementListCreate(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, club_id):
-        club = get_object_or_404(Club, pk=club_id)
-
-        if not can_view_club_content(request.user, club):
-            return Response(
-                {"detail": "You do not have permission to view these announcements."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        announcements = AnnouncementThread.objects.filter(club=club)
-        serializer = AnnouncementThreadSerializer(announcements, many=True)
-        return Response(serializer.data)
-
-    def post(self, request, club_id):
-        club = get_object_or_404(Club, pk=club_id)
-
-        if request.user != club.owner:
-            return Response(
-                {"detail": "Only the owner can post announcements."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        serializer = AnnouncementThreadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(club=club)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+#get individual clubs   
 class ClubDetail(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
         club = get_object_or_404(Club, pk=pk)
-        # Private clubs should only be visible to owner or approved members.
-        if not can_view_club_content(request.user, club):
-            if not request.user.is_authenticated:
-                return Response(
-                    {"detail": "Authentication required for private clubs."},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            return Response(
-                {"detail": "You do not have permission to view this club."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        serializer = ClubSerializer(club)
+        serializer = ClubSerializer(club, context={"request": request})
         return Response(serializer.data)
 
 class ClubJoinView(APIView):
@@ -233,6 +86,80 @@ class ClubJoinView(APIView):
         serializer = MemberSerializer(member)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+class MeetingListCreate(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, club_id):
+        club = get_object_or_404(Club, pk=club_id)
+        if not can_view_member_content(request.user, club):
+            return Response(
+                {"detail": "You don't have permissions to view this content."},
+                status=status.HTTP_403_FORBIDEN,
+            )
+        
+        meetings = Meeting.objects.filter(club=club)
+        serializer = MeetingSerializer(meetings, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, club_id):
+        club = Club.objects.get(pk=club_id)
+        # Check if user is owner before allowing meeting creation
+        if club.owner != request.user:
+            return Response({"detail": "Only the owner can create meetings."}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = MeetingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(club=club) # Automatically link to the club
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class MeetingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, club_id, meeting_id):
+        club = get_object_or_404(Club, pk=club_id)
+        meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
+        if not can_view_member_content(request.user, club):
+            return Response(
+                {"detail": "You don't have permissions to view this meeting."},
+                status=status.HTTP_403_FORBIDEN,
+            )   
+        serializer = MeetingSerializer(meeting, context={"request": request})
+        return Response(serializer.data)
+    
+    def patch(self, request, club_id, meeting_id):
+        club = get_object_or_404(Club, pk=club_id)
+        meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can edit meeetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = MeetingSerializer(meeting, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, club_id, meeting_id):
+        club = get_object_or_404(Club, pk=club_id)
+        meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can delete meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if meeting.attendance.exists():
+            return Response(
+                {"detail": "You cannot delete a meeting that already has bookings."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        meeting.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 class ClubMembersView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -300,7 +227,37 @@ class MeetingAttendanceView(APIView):
         
         return Response({"detail": "You're booked for this meeting!"}, status=status.HTTP_201_CREATED)
 
-class ClubBookListCreateView:
+class AnnouncementListCreate(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, club_id):
+        club = get_object_or_404(Club, pk=club_id)
+
+        if not can_view_member_content(request.user, club):
+            return Response(
+                {"detail": "You don't have permissions to view this content."},
+                status=status.HTTP_403_FORBIDEN,
+            )
+
+        announcements = AnnouncementThread.objects.filter(club=club)
+        serializer = AnnouncementThreadSerializer(announcements, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, club_id):
+        club = get_object_or_404(Club, pk=club_id)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can post announcements."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = AnnouncementThreadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(club=club)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class ClubBookListCreateView(APIView):
         def get_permissions(self):
             if self.request.method == "POST":
                 return [IsAuthenticated()]
@@ -308,19 +265,8 @@ class ClubBookListCreateView:
         
         def get(self, request, club_id):
             club = get_object_or_404(Club, pk=club_id)
-
-            if not can_view_club_content(request.user, club):
-                if not request.user.is_authenticated:
-                    return Response(
-                        {"detail": "Authentication required for private club content."},
-                        status=status.HTTP_401_UNAUTHORIZED,
-                    )
-                return Response(
-                    {"detail": "You do not have permission to view these books."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
             books = ClubBook.objects.filter(club=club)
-            serializer = ClubBookSerializer(books, many=True)
+            serializer = ClubBookSerializer(books, many=True, context={"request": request})
             return Response(serializer.data)
             
         def post(self, request, club_id):
@@ -345,19 +291,7 @@ class ClubBookDetailView(APIView):
     def get(self, request, club_id, book_id):
         club = get_object_or_404(Club, pk=club_id)
         book = get_object_or_404(ClubBook, pk=book_id, club=club)
-
-        if not can_view_club_content(request.user, club):
-            if not request.user.is_authenticated:
-                return Response(
-                    {"detail": "Authentication required for private club content."},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            return Response(
-                {"detail": "You do not have permission to view this book."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        serializer = ClubBookSerializer(book)
+        serializer = ClubBookSerializer(book, context={"request": request})
         return Response(serializer.data)
 
     def patch(self, request, club_id, book_id):
@@ -387,3 +321,79 @@ class ClubBookDetailView(APIView):
 
         book.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+class BookSearch(APIView):
+    """Proxy to Google Books API. Requires GOOGLE_BOOKS_API_KEY in env."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        q = (request.GET.get("q") or "").strip()
+        if not q:
+            return Response([], status=status.HTTP_200_OK)
+
+        api_key = getattr(settings, "GOOGLE_BOOKS_API_KEY", "") or ""
+        if not api_key:
+            return Response(
+                {"error": "Google Books API key not configured (GOOGLE_BOOKS_API_KEY)."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        encoded_q = quote_plus(q)
+        url = (
+            f"https://www.googleapis.com/books/v1/volumes"
+            f"?q={encoded_q}&maxResults=20&printType=books&key={quote_plus(api_key)}"
+        )
+        try:
+            with urlopen(url, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+        except HTTPError as e:
+            try:
+                body = e.fp.read().decode() if e.fp else ""
+            except Exception:
+                body = ""
+            try:
+                err_data = json.loads(body)
+                msg = err_data.get("error", {}).get("message", body or str(e))
+            except json.JSONDecodeError:
+                msg = body or str(e)
+            return Response(
+                {"error": "Google Books API error.", "detail": msg},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except (URLError, OSError, json.JSONDecodeError) as e:
+            return Response(
+                {"error": "Error calling Google Books API.", "detail": str(e)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        items = data.get("items") or []
+        results = []
+        for item in items:
+            vi = item.get("volumeInfo") or {}
+            links = vi.get("imageLinks") or {}
+            identifiers = vi.get("industryIdentifiers") or []
+            categories = vi.get("categories") or []
+
+            isbn = ""
+            for identifier in identifiers:
+                 if identifier.get("type") == "ISBN_13":
+                    isbn = identifier.get("identifier", "")
+                    break
+
+            if not isbn:
+                  for identifier in identifiers:
+                      if identifier.get("type") == "ISBN_10":
+                        isbn = identifier.get("identifier", "")
+                        break
+
+            results.append({
+                "google_books_id": item.get("id"),
+                "title": vi.get("title") or "Untitled",
+                "author": ", ".join(vi.get("authors") or ["Unknown author"]),
+                "description": vi.get("description") or "",
+                "cover_image": links.get("thumbnail") or links.get("smallThumbnail") or "",
+                "isbn": isbn,
+                "genre": ", ".join(categories) if categories else "",
+            })
+        return Response(results, status=status.HTTP_200_OK)
