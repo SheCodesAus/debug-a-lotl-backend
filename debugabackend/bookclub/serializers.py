@@ -53,11 +53,11 @@ class ClubSerializer(serializers.ModelSerializer):
         validated_data["owner"] = self.context["request"].user
         club = super().create(validated_data)
 
-##        Member.objects.create(
-##            user=validated_data["owner"],
-##            club=club,
-##            status=Member.STATUS_APPROVED 
-##        )
+        Member.objects.create(
+            user=validated_data["owner"],
+            club=club,
+            status=Member.STATUS_APPROVED 
+        )
         return club
     
 
