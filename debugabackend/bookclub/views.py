@@ -94,7 +94,7 @@ class MeetingListCreate(APIView):
         if not can_view_member_content(request.user, club):
             return Response(
                 {"detail": "You don't have permissions to view this content."},
-                status=status.HTTP_403_FORBIDEN,
+                status=status.HTTP_403_FORBIDDEN,
             )
         
         meetings = Meeting.objects.filter(club=club)
@@ -121,7 +121,7 @@ class MeetingDetailView(APIView):
         if not can_view_member_content(request.user, club):
             return Response(
                 {"detail": "You don't have permissions to view this meeting."},
-                status=status.HTTP_403_FORBIDEN,
+                status=status.HTTP_403_FORBIDDEN,
             )   
         serializer = MeetingSerializer(meeting, context={"request": request})
         return Response(serializer.data)
@@ -206,7 +206,12 @@ class MeetingAttendanceView(APIView):
 
     def post(self, request, meeting_id):
         meeting = get_object_or_404(Meeting, pk=meeting_id)
-        
+
+        if request.user == meeting.club.owner:
+            return Response(
+                {"detail":"Club owner does not need to book a meeting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )   
         # 1. User needs to be member of the club
         member = Member.objects.filter(
             user=request.user, 
@@ -235,8 +240,8 @@ class AnnouncementListCreate(APIView):
 
         if not can_view_member_content(request.user, club):
             return Response(
-                {"detail": "You don't have permissions to view this content."},
-                status=status.HTTP_403_FORBIDEN,
+                {"detail": "You don't have permissions to view announcements."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         announcements = AnnouncementThread.objects.filter(club=club)
@@ -256,6 +261,38 @@ class AnnouncementListCreate(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(club=club)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+#Announcement can be edited, but not deleted. So, only Get/pacth announcement is set    
+class AnnouncementDetailView(APIView):
+    permission_classes= [IsAuthenticated]
+
+    def get(self, request, club_id, announcementthread_id):
+        club = get_object_or_404(Club, pk=club_id)
+        announcement = get_object_or_404(AnnouncementThread, pk=announcementthread_id, club=club)
+
+        if not can_view_member_content(request.user, club):
+            return Response(
+                {"detail": "You don't have permissions to view this announcement."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = AnnouncementThreadSerializer(announcement, context={"request": request})
+        return Response(serializer.data)
+    
+    def patch(self, request, club_id, announcementthread_id):
+        club = get_object_or_404(Club, pk=club_id)
+        announcement = get_object_or_404(AnnouncementThread, pk=announcementthread_id, club=club)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can edit announcements."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = AnnouncementThreadSerializer(announcement, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(club=club)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class ClubBookListCreateView(APIView):
         def get_permissions(self):
