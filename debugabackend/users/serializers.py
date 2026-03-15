@@ -28,6 +28,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Use create_user so password is hashed correctly."""
         return CustomUser.objects.create_user(**validated_data)
+    def validate_email(self, value):
+        value=value.strip().lower()
+        if CustomUser.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
 
 
 class MeSerializer(serializers.ModelSerializer):
