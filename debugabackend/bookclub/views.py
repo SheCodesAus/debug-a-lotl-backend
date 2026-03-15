@@ -53,12 +53,35 @@ class ClubListCreate(APIView):
 
 #get individual clubs   
 class ClubDetail(APIView):
-    permission_classes = [AllowAny]
+    def get_permissions(self):
+        if self.request.method == ("PUT", "PATCH"):
+            return [IsAuthenticated()]
+        return [AllowAny()]
 
     def get(self, request, pk):
         club = get_object_or_404(Club, pk=pk)
         serializer = ClubSerializer(club, context={"request": request})
         return Response(serializer.data)
+    
+    def patch(self, request, pk):
+        club = get_object_or_404(Club, pk=pk)
+
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can edit this club."},
+                status=status.HTTP_403_FORBIDDEN,
+             )
+
+        serializer = ClubSerializer(
+            club,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class ClubJoinView(APIView):
     permission_classes = [IsAuthenticated]

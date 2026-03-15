@@ -60,7 +60,11 @@ class ClubSerializer(serializers.ModelSerializer):
         )
         return club
     
-
+    def validate_name(self, value):
+        if Club.objects.filter(name__iexact=value.strip()).exists():
+            raise serializers.ValidationError("A club with this name already exists")
+        return value.strip()
+    
 class MeetingAttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MeetingAttendance

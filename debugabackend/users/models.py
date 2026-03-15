@@ -17,9 +17,11 @@ class CustomUser(AbstractUser):
     """
 
     # Profile fields added for our schema (stored as URL and text).
+    email = models.EmailField(unique=True)
     profile_picture = models.URLField(max_length=500, blank=True)
     bio = models.TextField(blank=True)
     name = models.CharField(max_length=255)
+    
 
     def __str__(self):
         return self.username

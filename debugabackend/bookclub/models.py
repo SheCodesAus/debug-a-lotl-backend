@@ -50,7 +50,7 @@ class Club(models.Model):
     MODE_IN_PERSON = "in_person"
     MODE_CHOICES = [(MODE_VIRTUAL, "Virtual"), (MODE_IN_PERSON, "In person")]   
 
-    name = models.CharField(max_length=255, blank=True, default="")
+    name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     banner_image = models.URLField(max_length=500, blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owned_clubs")
