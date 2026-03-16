@@ -97,7 +97,7 @@ class AnnouncementThreadSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnnouncementThread
         fields = ['id', 'club', 'title', 'message', 'sent_at']
-        read_only_fields = ['id', 'sent_at']
+        read_only_fields = ['id', 'club', 'sent_at']
 
 class ClubBookSerializer(serializers.ModelSerializer):
     class Meta:
