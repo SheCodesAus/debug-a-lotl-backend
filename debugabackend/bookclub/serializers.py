@@ -89,12 +89,22 @@ class MeetingSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'club']
 
     def validate(self, data):
+        start_time = data.get("start_time", getattr(self.instance, "start_time", None))
+        end_time = data.get("end_time", getattr(self.instance, "end_time", None))
+        meeting_type = data.get("meeting_type", getattr(self.instance, "meeting_type", None))
+        location = data.get("location", getattr(self.instance, "location", ""))
         # Move the rules here!
-        if data.get('end_time') <= data.get('start_time'):
-            raise serializers.ValidationError({"end_time": "End time must be after start time."})
         
-        if data.get('meeting_type') == 'in_person' and not data.get('location'):
-            raise serializers.ValidationError({"location": "Location required for in-person meetings."})
+        if start_time and end_time and end_time <= start_time:
+            raise serializers.ValidationError(
+                {"end_time": "End time must be after start time."}
+             )
+
+        if meeting_type == "in_person" and not location:
+            raise serializers.ValidationError(
+                {"location": "Location required for in-person meetings."}
+            )
+
         return data
 
 
