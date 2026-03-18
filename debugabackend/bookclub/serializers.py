@@ -61,9 +61,14 @@ class ClubSerializer(serializers.ModelSerializer):
         return club
     
     def validate_name(self, value):
-        if Club.objects.filter(name__iexact=value.strip()).exists():
+        cleaned_name = value.strip()
+        # Allow updating a club without tripping the uniqueness check on itself.
+        qs = Club.objects.filter(name__iexact=cleaned_name)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
             raise serializers.ValidationError("A club with this name already exists")
-        return value.strip()
+        return cleaned_name
     
 class MeetingAttendanceSerializer(serializers.ModelSerializer):
     class Meta:
