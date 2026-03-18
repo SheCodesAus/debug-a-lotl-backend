@@ -15,4 +15,5 @@ urlpatterns = [
     path("clubs/<int:club_id>/announcements/<int:announcementthread_id>/", views.AnnouncementDetailView.as_view(), name="announcement-detail",),
     path("clubs/<int:club_id>/books/", views.ClubBookListCreateView.as_view(), name="clubbook-list"),
     path("clubs/<int:club_id>/books/<int:book_id>/", views.ClubBookDetailView.as_view(), name="clubbook-detail"),
+    path("stats/home/", views.HomeStatsView.as_view(), name="home-stats"),
 ]
