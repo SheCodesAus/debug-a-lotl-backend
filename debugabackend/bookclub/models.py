@@ -62,6 +62,7 @@ class Club(models.Model):
     club_meeting_mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_VIRTUAL)
     club_location = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -101,6 +102,7 @@ class ClubBook(models.Model):
     start_date = models.DateField(null=True, blank=True)
     finish_date = models.DateField(null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
+    
     
 class Meeting(models.Model):
     TYPE_VIRTUAL = "virtual"

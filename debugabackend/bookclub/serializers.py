@@ -14,6 +14,7 @@ class ClubSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source = "owner.name")
     member_count = serializers.SerializerMethodField()
     spots_remaining = serializers.SerializerMethodField()
+    membership_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Club
@@ -33,7 +34,13 @@ class ClubSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id","owner","owner_name", "member_count", "spots_remaining", "created_at"]
-
+    def membership_status(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenthicated:
+            return None
+        member = obj.memberships.filter(user=request.user).firt()
+        return member.status if member else None
+    
     def get_member_count(self,obj):
         #Count approved members for private clubs
         return obj.memberships.filter(status=Member.STATUS_APPROVED).count()
@@ -128,3 +135,7 @@ class MemberSerializer(serializers.ModelSerializer):
         model = Member
         fields = [ "id", "user", "username", "club", "status" , "joined_at"]
         read_only_fields = ["id", "user", "username", "club", "joined_at"]
+
+class HomeStatsSerializer(serializers.Serializer):
+    active_readers = serializers.IntegerField()
+    total_books_read = serializers.IntegerField()

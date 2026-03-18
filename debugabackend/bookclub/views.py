@@ -5,6 +5,7 @@ from urllib.parse import quote_plus
 from urllib.error import HTTPError
 # Fetch the Google Books API response; URLError for network/connection failures.
 from urllib.request import urlopen, URLError
+from django.db.models import Count
 
 # GOOGLE_BOOKS_API_KEY is read from here for the BookSearch proxy.
 from django.conf import settings
@@ -14,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Meeting, AnnouncementThread, Club, Member, ClubBook
-from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer, ClubBookSerializer)
+from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer, ClubBookSerializer, HomeStatsSerializer)
 
 
 #fuction to centralise club visibility rule
@@ -41,7 +42,7 @@ class ClubListCreate(APIView):
         return [AllowAny()]
 
     def get(self, request):
-        clubs = Club.objects.all()
+        clubs = Club.objects.filter(is_active=True)
         serializer = ClubSerializer(clubs, many=True, context={"request": request})
         return Response(serializer.data)
 
@@ -59,7 +60,7 @@ class ClubDetail(APIView):
         return [AllowAny()]
 
     def get(self, request, pk):
-        club = get_object_or_404(Club, pk=pk)
+        club = get_object_or_404(Club, pk=pk, is_active=True)
         serializer = ClubSerializer(club, context={"request": request})
         return Response(serializer.data)
     
@@ -81,6 +82,19 @@ class ClubDetail(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def delete(self, request, pk):
+        club = get_object_or_404(Club, pk=pk)
+        if request.user != club.owner:
+            return Response(
+                {"detail": "Only the owner can delete this club."},
+                status=status.HTTP_403_FORBIDDEN,
+             )
+        
+        club.is_active = False
+        club.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ClubJoinView(APIView):
@@ -457,3 +471,26 @@ class BookSearch(APIView):
                 "genre": ", ".join(categories) if categories else "",
             })
         return Response(results, status=status.HTTP_200_OK)
+    
+class HomeStatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        active_readers = (
+            Members.objects.filter(status=Member.STATUS_APPROVED, club__is_active=True)
+            .values("user")
+            .distinct()
+            .count()
+        )
+        total_books_read = ClubBook.objects.filter(
+            status=ClubBook.STATUS_READ,
+            club__is_active=True,
+        ).count()
+
+        data = {
+            "active_readers": active_readers,
+            "total_books_read": total_books_read,
+        }
+
+        serializer = HomeStatsSerializer(data)
+        return Response(serializer.data)
