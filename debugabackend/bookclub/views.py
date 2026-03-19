@@ -477,7 +477,7 @@ class HomeStatsView(APIView):
 
     def get(self, request):
         active_readers = (
-            Members.objects.filter(status=Member.STATUS_APPROVED, club__is_active=True)
+            Member.objects.filter(status=Member.STATUS_APPROVED, club__is_active=True)
             .values("user")
             .distinct()
             .count()
