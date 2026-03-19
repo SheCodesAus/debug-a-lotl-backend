@@ -52,6 +52,14 @@ class ClubListCreate(APIView):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+class MyClubsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        clubs = Club.objects.filter(owner=request.user).order_by("-created_at")
+        serializer = ClubSerializer(clubs, many=True, context={"request": request})
+        return Response(serializer.data)
+
 #get individual clubs   
 class ClubDetail(APIView):
     def get_permissions(self):
