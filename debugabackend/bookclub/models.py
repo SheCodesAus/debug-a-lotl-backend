@@ -91,7 +91,7 @@ class ClubBook(models.Model):
     ]
 
     club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="club_books")
-    google_books_id = models.CharField(max_length=100, blank=True)
+    google_books_id = models.CharField(max_length=100)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     cover_image= models.URLField(max_length=500, blank=True)
@@ -102,6 +102,14 @@ class ClubBook(models.Model):
     start_date = models.DateField(null=True, blank=True)
     finish_date = models.DateField(null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields = ["club","google_books_id"],
+                name="unique_google_book_per_club"
+            ),
+        ]
     
     
 class Meeting(models.Model):

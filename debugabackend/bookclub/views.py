@@ -55,12 +55,19 @@ class ClubListCreate(APIView):
 #get individual clubs   
 class ClubDetail(APIView):
     def get_permissions(self):
-        if self.request.method == ("PUT", "PATCH"):
+        if self.request.method in ("PUT", "PATCH", "DELETE"):
             return [IsAuthenticated()]
         return [AllowAny()]
 
     def get(self, request, pk):
-        club = get_object_or_404(Club, pk=pk, is_active=True)
+        club = get_object_or_404(Club, pk=pk)
+
+        if not club.is_active and request.user != club.owner:
+            return Response(
+            {"detail": "Club not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
         serializer = ClubSerializer(club, context={"request": request})
         return Response(serializer.data)
     
@@ -351,7 +358,10 @@ class ClubBookListCreateView(APIView):
                     {"detail": "Only the owner can add books."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            serializer = ClubBookSerializer(data=request.data)
+            serializer = ClubBookSerializer(
+            data=request.data,
+            context={"club": club},
+            )
             serializer.is_valid(raise_exception=True)
             serializer.save(club=club)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -378,7 +388,7 @@ class ClubBookDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = ClubBookSerializer(book, data=request.data, partial=True)
+        serializer = ClubBookSerializer(book, data=request.data, partial=True, context={"club": club})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

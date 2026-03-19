@@ -33,6 +33,7 @@ class ClubSerializer(serializers.ModelSerializer):
             "spots_remaining",
             "membership_status",
             "created_at",
+            "is_active"
         ]
         read_only_fields = ["id","owner","owner_name", "member_count", "spots_remaining", "membership_status","created_at"]
     def get_membership_status(self, obj):
@@ -123,6 +124,24 @@ class AnnouncementThreadSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'club', 'sent_at']
 
 class ClubBookSerializer(serializers.ModelSerializer):
+
+    def validate(self, data):
+        club = self.context.get("club")
+        google_books_id = data.get("google_books_id")
+
+        if club and google_books_id:
+            qs = ClubBook.objects.filter(club=club, google_books_id=google_books_id)
+
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"google_books_id": "This book has already been added to this club."}
+                )
+
+        return data
+
     class Meta:
         model = ClubBook
         fields = '__all__'
