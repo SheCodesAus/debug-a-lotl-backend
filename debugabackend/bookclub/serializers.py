@@ -31,14 +31,15 @@ class ClubSerializer(serializers.ModelSerializer):
             "club_location",
             "member_count",
             "spots_remaining",
+            "membership_status",
             "created_at",
         ]
-        read_only_fields = ["id","owner","owner_name", "member_count", "spots_remaining", "created_at"]
-    def membership_status(self, obj):
+        read_only_fields = ["id","owner","owner_name", "member_count", "spots_remaining", "membership_status","created_at"]
+    def get_membership_status(self, obj):
         request = self.context.get("request")
-        if not request or not request.user.is_authenthicated:
+        if not request or not request.user.is_authenticated:
             return None
-        member = obj.memberships.filter(user=request.user).firt()
+        member = obj.memberships.filter(user=request.user).first()
         return member.status if member else None
     
     def get_member_count(self,obj):
