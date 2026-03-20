@@ -16,6 +16,9 @@ class ClubSerializer(serializers.ModelSerializer):
     spots_remaining = serializers.SerializerMethodField()
     membership_status = serializers.SerializerMethodField()
 
+    def _approved_members_qs(self, obj):
+        return obj.memberships.filter(status=Member.STATUS_APPROVED).exclude(user=obj.owner)
+
     class Meta:
         model = Club
         fields = [
@@ -44,16 +47,15 @@ class ClubSerializer(serializers.ModelSerializer):
         return member.status if member else None
     
     def get_member_count(self,obj):
-        #Count approved members for private clubs
-        return obj.memberships.filter(status=Member.STATUS_APPROVED).count()
+        # Count approved non-owner members.
+        return self._approved_members_qs(obj).count()
     
     def get_spots_remaining(self,obj):
-        #if there is no max_members limit, return none
+        # If there is no max_members limit, return none.
         if obj.max_members is None:
             return None
-        
-        approved_count = obj.memberships.filter(
-            status=Member.STATUS_APPROVED).count()
+
+        approved_count = self._approved_members_qs(obj).count()
         remaining = obj.max_members - approved_count
         return max(remaining, 0)
     
@@ -187,7 +189,7 @@ class ClubBookSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         club = self.context.get("club")
-        google_books_id = data.get("google_books_id")
+        google_books_id = data.get("google_books_id") or getattr(self.instance, "google_books_id", "")
 
         if club and google_books_id:
             qs = ClubBook.objects.filter(club=club, google_books_id=google_books_id)

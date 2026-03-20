@@ -45,6 +45,14 @@ def can_view_member_content(user, club):
     return is_club_owner(user,club) or is_approved_member(user,club)
 
 
+def is_inactive_for_non_owner(user, club):
+    return not club.is_active and not is_club_owner(user, club)
+
+
+def approved_non_owner_count(club):
+    return club.memberships.filter(status=Member.STATUS_APPROVED).exclude(user=club.owner).count()
+
+
 class ClubListCreate(APIView):
     def get_permissions(self):
         if self.request.method == "POST":
@@ -128,17 +136,34 @@ class ClubJoinView(APIView):
     def post(self, request, pk):
         club = get_object_or_404(Club, pk=pk)
 
+        if is_inactive_for_non_owner(request.user, club):
+            return Response(
+                {"detail": "Club not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         if request.user == club.owner:
             return Response (
                 {"detail": "Club owner does not need to join as a member."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         existing_member = Member.objects.filter(user=request.user, club=club).first()
         if existing_member:
+            if existing_member.status == Member.STATUS_REJECTED:
+                existing_member.status = Member.STATUS_PENDING if not club.is_public else Member.STATUS_APPROVED
+                existing_member.save()
             serializer = MemberSerializer(existing_member)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        
-        membership_status = ( Member.STATUS_APPROVED if club.is_public else Member.STATUS_PENDING)
+
+        approved_count = approved_non_owner_count(club)
+        if club.max_members is not None and approved_count >= club.max_members:
+            return Response(
+                {"detail": "This club has reached its maximum member capacity."},
+                status=status.HTTP_400_BAD_REQUEST,
+             )
+
+        membership_status = (Member.STATUS_APPROVED if club.is_public else Member.STATUS_PENDING)
         member = Member.objects.create(
             user=request.user,
             club=club,
@@ -147,12 +172,33 @@ class ClubJoinView(APIView):
 
         serializer = MemberSerializer(member)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        club = get_object_or_404(Club, pk=pk)
+
+        if is_inactive_for_non_owner(request.user, club):
+            return Response(
+                {"detail": "Club not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        membership = Member.objects.filter(user=request.user, club=club).exclude(user=club.owner).first()
+        if not membership:
+            return Response(
+                {"detail": "You are not a member of this club."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        membership.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
 class MeetingListCreate(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, club_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         if not can_view_member_content(request.user, club):
             return Response(
                 {"detail": "You don't have permissions to view this content."},
@@ -167,6 +213,8 @@ class MeetingListCreate(APIView):
 
     def post(self, request, club_id):
         club = Club.objects.get(pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         # Check if user is owner before allowing meeting creation
         if club.owner != request.user:
             return Response({"detail": "Only the owner can create meetings."}, status=status.HTTP_403_FORBIDDEN)
@@ -183,6 +231,8 @@ class MeetingDetailView(APIView):
 
     def get(self, request, club_id, meeting_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
         if not can_view_member_content(request.user, club):
             return Response(
@@ -194,6 +244,8 @@ class MeetingDetailView(APIView):
     
     def patch(self, request, club_id, meeting_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
 
         if request.user != club.owner:
@@ -214,6 +266,8 @@ class MeetingDetailView(APIView):
 
     def delete(self, request, club_id, meeting_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
 
         if request.user != club.owner:
@@ -236,7 +290,9 @@ class ClubMembersView(APIView):
 
     def get(self, request, pk):
         club = get_object_or_404(Club, pk=pk)
-            
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
+
         if request.user != club.owner:
             return Response(
                 {"detail": "Only the club owner can view members"},
@@ -248,15 +304,19 @@ class ClubMembersView(APIView):
         
 class MemberStatusUpdateView(APIView):
     permission_classes = [IsAuthenticated]
+
     def patch(self, request, club_pk, member_pk):
         club = get_object_or_404(Club, pk=club_pk)
+
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if request.user != club.owner:
             return Response (
                 {"detail":"Only the club owner can approve or reject members."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        member=get_object_or_404(Member, pk=member_pk, club=club)
+        member = get_object_or_404(Member, pk=member_pk, club=club)
 
         new_status = request.data.get("status")
         if new_status not in [
@@ -267,7 +327,16 @@ class MemberStatusUpdateView(APIView):
                 {"detail":"Status must be approved or rejected"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        member.status=new_status
+
+        if new_status == Member.STATUS_APPROVED and member.status != Member.STATUS_APPROVED:
+            current_approved = approved_non_owner_count(club)
+            if club.max_members is not None and current_approved >= club.max_members:
+                return Response(
+                    {"detail": "This club has reached its maximum member capacity."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        member.status = new_status
         member.save()
         serializer = MemberSerializer(member)
         return Response(serializer.data)
@@ -277,6 +346,9 @@ class MeetingAttendanceView(APIView):
 
     def post(self, request, meeting_id):
         meeting = get_object_or_404(Meeting, pk=meeting_id)
+
+        if is_inactive_for_non_owner(request.user, meeting.club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if request.user == meeting.club.owner:
             return Response(
@@ -333,6 +405,9 @@ class AnnouncementListCreate(APIView):
     def get(self, request, club_id):
         club = get_object_or_404(Club, pk=club_id)
 
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
+
         if not can_view_member_content(request.user, club):
             return Response(
                 {"detail": "You don't have permissions to view announcements."},
@@ -345,6 +420,9 @@ class AnnouncementListCreate(APIView):
 
     def post(self, request, club_id):
         club = get_object_or_404(Club, pk=club_id)
+
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if request.user != club.owner:
             return Response(
@@ -363,6 +441,8 @@ class AnnouncementDetailView(APIView):
 
     def get(self, request, club_id, announcementthread_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         announcement = get_object_or_404(AnnouncementThread, pk=announcementthread_id, club=club)
 
         if not can_view_member_content(request.user, club):
@@ -375,6 +455,8 @@ class AnnouncementDetailView(APIView):
     
     def patch(self, request, club_id, announcementthread_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         announcement = get_object_or_404(AnnouncementThread, pk=announcementthread_id, club=club)
 
         if request.user != club.owner:
@@ -397,12 +479,17 @@ class ClubBookListCreateView(APIView):
         
         def get(self, request, club_id):
             club = get_object_or_404(Club, pk=club_id)
+            if is_inactive_for_non_owner(request.user, club):
+                return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
             books = ClubBook.objects.filter(club=club)
             serializer = ClubBookSerializer(books, many=True, context={"request": request})
             return Response(serializer.data)
             
         def post(self, request, club_id):
             club=get_object_or_404(Club, pk=club_id)
+
+            if is_inactive_for_non_owner(request.user, club):
+                return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
 
             if request.user != club.owner:
                 return Response(
@@ -425,12 +512,16 @@ class ClubBookDetailView(APIView):
 
     def get(self, request, club_id, book_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         book = get_object_or_404(ClubBook, pk=book_id, club=club)
         serializer = ClubBookSerializer(book, context={"request": request})
         return Response(serializer.data)
 
     def patch(self, request, club_id, book_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         book = get_object_or_404(ClubBook, pk=book_id, club=club)
 
         if request.user != club.owner:
@@ -446,6 +537,8 @@ class ClubBookDetailView(APIView):
 
     def delete(self, request, club_id, book_id):
         club = get_object_or_404(Club, pk=club_id)
+        if is_inactive_for_non_owner(request.user, club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
         book = get_object_or_404(ClubBook, pk=book_id, club=club)
 
         if request.user != club.owner:
