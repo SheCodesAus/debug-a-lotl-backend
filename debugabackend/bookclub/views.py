@@ -10,12 +10,22 @@ from django.db.models import Count
 # GOOGLE_BOOKS_API_KEY is read from here for the BookSearch proxy.
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Meeting, AnnouncementThread, Club, Member, ClubBook
-from .serializers import (ClubSerializer, MeetingSerializer,AnnouncementThreadSerializer, MemberSerializer, MeetingAttendanceSerializer, ClubBookSerializer, HomeStatsSerializer)
+from .models import Meeting, MeetingAttendance, AnnouncementThread, Club, Member, ClubBook
+from .serializers import (
+    ClubSerializer,
+    MeetingSerializer,
+    AnnouncementThreadSerializer,
+    MemberSerializer,
+    MeetingAttendanceSerializer,
+    ClubBookSerializer,
+    HomeStatsSerializer,
+    BookedMeetingSerializer,
+)
 
 
 #fuction to centralise club visibility rule
@@ -150,7 +160,9 @@ class MeetingListCreate(APIView):
             )
         
         meetings = Meeting.objects.filter(club=club)
-        serializer = MeetingSerializer(meetings, many=True)
+        serializer = MeetingSerializer(
+            meetings, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
     def post(self, request, club_id):
@@ -159,7 +171,9 @@ class MeetingListCreate(APIView):
         if club.owner != request.user:
             return Response({"detail": "Only the owner can create meetings."}, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = MeetingSerializer(data=request.data)
+        serializer = MeetingSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save(club=club) # Automatically link to the club
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -188,7 +202,12 @@ class MeetingDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = MeetingSerializer(meeting, data=request.data, partial=True)
+        serializer = MeetingSerializer(
+            meeting,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -283,6 +302,30 @@ class MeetingAttendanceView(APIView):
         serializer.save()
         
         return Response({"detail": "You're booked for this meeting!"}, status=status.HTTP_201_CREATED)
+
+
+class MyBookedMeetingsView(APIView):
+    """
+    Upcoming meetings the current user has booked (MeetingAttendance), soonest first by date/time.
+    Uses calendar date >= today in the server timezone.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+        attendances = (
+            MeetingAttendance.objects.filter(
+                member__user=request.user,
+                meeting__meeting_date__gte=today,
+            )
+            .select_related("meeting", "meeting__club")
+            .order_by("meeting__meeting_date", "meeting__start_time")
+        )
+        meetings = [a.meeting for a in attendances]
+        serializer = BookedMeetingSerializer(meetings, many=True)
+        return Response(serializer.data)
+
 
 class AnnouncementListCreate(APIView):
     permission_classes = [IsAuthenticated]
