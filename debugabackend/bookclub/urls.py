@@ -12,6 +12,7 @@ urlpatterns = [
     path('clubs/<int:club_id>/meetings/', views.MeetingListCreate.as_view(), name='meeting-list'),
     path( "clubs/<int:club_id>/meetings/<int:meeting_id>/", views.MeetingDetailView.as_view(),name="meeting-detail",),
     path('meetings/<int:meeting_id>/attend/', views.MeetingAttendanceView.as_view(), name='attend-meeting'),
+    path("meetings/booked/", views.MyBookedMeetingsView.as_view(), name="my-booked-meetings"),
     path('clubs/<int:club_id>/announcements/', views.AnnouncementListCreate.as_view(), name='announcement-list'),
     path("clubs/<int:club_id>/announcements/<int:announcementthread_id>/", views.AnnouncementDetailView.as_view(), name="announcement-detail",),
     path("clubs/<int:club_id>/books/", views.ClubBookListCreateView.as_view(), name="clubbook-list"),

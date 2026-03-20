@@ -100,10 +100,37 @@ class MeetingAttendanceSerializer(serializers.ModelSerializer):
         return data
     
 class MeetingSerializer(serializers.ModelSerializer):
+    """Includes `user_has_booked` when `context[\"request\"]` is set (e.g. club meeting list)."""
+
+    user_has_booked = serializers.SerializerMethodField()
+
     class Meta:
         model = Meeting
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'club']
+        fields = [
+            "id",
+            "club",
+            "title",
+            "description",
+            "meeting_date",
+            "start_time",
+            "end_time",
+            "meeting_type",
+            "location",
+            "created_at",
+            "user_has_booked",
+        ]
+        read_only_fields = ["id", "created_at", "club", "user_has_booked"]
+
+    def get_user_has_booked(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        if obj.club.owner_id == request.user.id:
+            return False
+        return MeetingAttendance.objects.filter(
+            meeting=obj,
+            member__user=request.user,
+        ).exists()
 
     def validate(self, data):
         start_time = data.get("start_time", getattr(self.instance, "start_time", None))
@@ -123,6 +150,31 @@ class MeetingSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+class BookedMeetingClubSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Club
+        fields = ["id", "name"]
+
+
+class BookedMeetingSerializer(serializers.ModelSerializer):
+    """Meeting + club summary for the current user's booked upcoming meetings."""
+
+    club = BookedMeetingClubSerializer(read_only=True)
+
+    class Meta:
+        model = Meeting
+        fields = [
+            "id",
+            "title",
+            "meeting_date",
+            "start_time",
+            "end_time",
+            "meeting_type",
+            "location",
+            "club",
+        ]
 
 
 class AnnouncementThreadSerializer(serializers.ModelSerializer):
