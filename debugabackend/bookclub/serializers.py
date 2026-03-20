@@ -57,6 +57,14 @@ class ClubSerializer(serializers.ModelSerializer):
         remaining = obj.max_members - approved_count
         return max(remaining, 0)
     
+    def validate(self, attrs):
+        """Public clubs cannot enforce a max member limit."""
+        instance = self.instance
+        is_public = attrs.get("is_public", instance.is_public if instance else True)
+        if is_public:
+            attrs["max_members"] = None
+        return attrs
+
     def create(self, validated_data):
         # The logged-in user becomes the club owner automatically.
         validated_data["owner"] = self.context["request"].user
