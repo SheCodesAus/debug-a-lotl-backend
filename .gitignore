@@ -54,6 +54,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+# collectstatic output (regenerated on deploy)
+debugabackend/staticfiles/
 # Flask stuff:
 instance/
 .webassets-cache
