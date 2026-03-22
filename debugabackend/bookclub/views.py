@@ -375,6 +375,26 @@ class MeetingAttendanceView(APIView):
         
         return Response({"detail": "You're booked for this meeting!"}, status=status.HTTP_201_CREATED)
 
+    def delete(self, request, meeting_id):
+        meeting = get_object_or_404(Meeting, pk=meeting_id)
+
+        if is_inactive_for_non_owner(request.user, meeting.club):
+            return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        attendance = MeetingAttendance.objects.filter(
+            meeting=meeting,
+            member__user=request.user,
+        ).first()
+
+        if not attendance:
+            return Response(
+                {"detail": "You do not have a booking for this meeting."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        attendance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class MyBookedMeetingsView(APIView):
     """
