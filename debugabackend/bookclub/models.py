@@ -102,6 +102,11 @@ class ClubBook(models.Model):
     start_date = models.DateField(null=True, blank=True)
     finish_date = models.DateField(null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the book was first marked as read (historic).",
+    )
 
     class Meta:
         constraints = [

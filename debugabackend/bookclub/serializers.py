@@ -4,6 +4,7 @@ Bookclub serializers: Club create/list with automatic owner membership.
 When a user creates a club, they are set as created_by and we create a UserClub
 row with role=owner, status=approved so there is exactly one owner per club.
 """
+from django.utils import timezone
 from rest_framework import serializers
 from .models import Club, Member, ClubBook, Meeting, MeetingAttendance, AnnouncementThread
 
@@ -46,7 +47,7 @@ class ClubSerializer(serializers.ModelSerializer):
         member = obj.memberships.filter(user=request.user).first()
         return member.status if member else None
     
-    def get_member_count(self,obj):
+    def get_member_count(self, obj):
         # Count approved non-owner members.
         return self._approved_members_qs(obj).count()
     
@@ -204,10 +205,21 @@ class ClubBookSerializer(serializers.ModelSerializer):
 
         return data
 
+    def create(self, validated_data):
+        if validated_data.get("status") == ClubBook.STATUS_READ:
+            validated_data.setdefault("read_at", timezone.now())
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        new_status = validated_data.get("status", instance.status)
+        if new_status == ClubBook.STATUS_READ and instance.status != ClubBook.STATUS_READ:
+            validated_data.setdefault("read_at", timezone.now())
+        return super().update(instance, validated_data)
+
     class Meta:
         model = ClubBook
         fields = '__all__'
-        read_only_fields = ['id', 'added_at', 'club']
+        read_only_fields = ['id', 'added_at', 'read_at', 'club']
 
 class MemberSerializer(serializers.ModelSerializer):
     #Expose basic user info for member list

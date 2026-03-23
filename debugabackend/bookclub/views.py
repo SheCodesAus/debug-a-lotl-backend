@@ -665,6 +665,5 @@ class HomeStatsView(APIView):
             "active_readers": active_readers,
             "total_books_read": total_books_read,
         }
-
         serializer = HomeStatsSerializer(data)
         return Response(serializer.data)
