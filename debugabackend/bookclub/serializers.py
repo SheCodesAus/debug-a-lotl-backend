@@ -106,6 +106,8 @@ class MeetingSerializer(serializers.ModelSerializer):
     """Includes `user_has_booked` when `context[\"request\"]` is set (e.g. club meeting list)."""
 
     user_has_booked = serializers.SerializerMethodField()
+    attendance_count = serializers.SerializerMethodField()
+    attendee_previews = serializers.SerializerMethodField()
 
     class Meta:
         model = Meeting
@@ -120,9 +122,42 @@ class MeetingSerializer(serializers.ModelSerializer):
             "meeting_type",
             "location",
             "created_at",
+            "cancel_date",
+            "attendance_count",
+            "attendee_previews",
             "user_has_booked",
         ]
-        read_only_fields = ["id", "created_at", "club", "user_has_booked"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "cancel_date",
+            "attendance_count",
+            "attendee_previews",
+            "club",
+            "user_has_booked",
+        ]
+
+    def get_attendee_previews(self, obj):
+        """Lightweight list for avatar stack (first 5 bookings, oldest first)."""
+        previews = []
+        for attendance in list(obj.attendance.all())[:5]:
+            u = attendance.member.user
+            name = (getattr(u, "name", "") or u.username or "").strip() or u.username
+            previews.append(
+                {
+                    "user_id": u.id,
+                    "profile_picture": u.profile_picture or "",
+                    "display_name": name,
+                }
+            )
+        return previews
+
+    def get_attendance_count(self, obj):
+        # Prefer queryset annotation (see MeetingListCreate / MeetingDetailView) to avoid N+1.
+        annotated = getattr(obj, "attendance_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.attendance.count()
 
     def get_user_has_booked(self, obj):
         request = self.context.get("request")
