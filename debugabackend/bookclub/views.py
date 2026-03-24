@@ -5,7 +5,7 @@ from urllib.parse import quote_plus
 from urllib.error import HTTPError
 # Fetch the Google Books API response; URLError for network/connection failures.
 from urllib.request import urlopen, URLError
-from django.db.models import Count
+from django.db.models import Count, F, Prefetch
 
 # GOOGLE_BOOKS_API_KEY is read from here for the BookSearch proxy.
 from django.conf import settings
@@ -51,6 +51,15 @@ def is_inactive_for_non_owner(user, club):
 
 def approved_non_owner_count(club):
     return club.memberships.filter(status=Member.STATUS_APPROVED).exclude(user=club.owner).count()
+
+
+# Ordered bookings with user rows for MeetingSerializer.attendee_previews (avoids N+1 on meeting lists).
+MEETING_ATTENDANCE_AVATAR_PREFETCH = Prefetch(
+    "attendance",
+    queryset=MeetingAttendance.objects.select_related("member__user").order_by(
+        "booked_at", "id"
+    ),
+)
 
 
 class ClubListCreate(APIView):
@@ -205,7 +214,13 @@ class MeetingListCreate(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         
-        meetings = Meeting.objects.filter(club=club)
+        # Include cancelled (soft-cancelled) meetings; active (no cancel_date) first, then by date.
+        meetings = (
+            Meeting.objects.filter(club=club)
+            .annotate(attendance_count=Count("attendance"))
+            .prefetch_related(MEETING_ATTENDANCE_AVATAR_PREFETCH)
+            .order_by(F("cancel_date").asc(nulls_first=True), "meeting_date", "start_time", "id")
+        )
         serializer = MeetingSerializer(
             meetings, many=True, context={"request": request}
         )
@@ -233,7 +248,12 @@ class MeetingDetailView(APIView):
         club = get_object_or_404(Club, pk=club_id)
         if is_inactive_for_non_owner(request.user, club):
             return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
-        meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
+        meeting = get_object_or_404(
+            Meeting.objects.annotate(attendance_count=Count("attendance"))
+            .prefetch_related(MEETING_ATTENDANCE_AVATAR_PREFETCH),
+            pk=meeting_id,
+            club=club,
+        )
         if not can_view_member_content(request.user, club):
             return Response(
                 {"detail": "You don't have permissions to view this meeting."},
@@ -246,7 +266,12 @@ class MeetingDetailView(APIView):
         club = get_object_or_404(Club, pk=club_id)
         if is_inactive_for_non_owner(request.user, club):
             return Response({"detail": "Club not found."}, status=status.HTTP_404_NOT_FOUND)
-        meeting = get_object_or_404(Meeting, pk=meeting_id, club=club)
+        meeting = get_object_or_404(
+            Meeting.objects.annotate(attendance_count=Count("attendance"))
+            .prefetch_related(MEETING_ATTENDANCE_AVATAR_PREFETCH),
+            pk=meeting_id,
+            club=club,
+        )
 
         if request.user != club.owner:
             return Response(
@@ -277,9 +302,20 @@ class MeetingDetailView(APIView):
             )
 
         if meeting.attendance.exists():
+            if meeting.cancel_date:
+                return Response(
+                    {"detail": "This meeting is already cancelled."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            meeting.cancel_date = timezone.now()
+            meeting.save(update_fields=["cancel_date"])
+            serializer = MeetingSerializer(meeting, context={"request": request})
             return Response(
-                {"detail": "You cannot delete a meeting that already has bookings."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "detail": "Meeting has bookings, so it was cancelled instead of deleted.",
+                    "meeting": serializer.data,
+                },
+                status=status.HTTP_200_OK,
             )
 
         meeting.delete()
@@ -355,6 +391,11 @@ class MeetingAttendanceView(APIView):
                 {"detail":"Club owner does not need to book a meeting."},
                 status=status.HTTP_400_BAD_REQUEST,
             )   
+        if meeting.cancel_date:
+            return Response(
+                {"detail": "This meeting has been cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         # 1. User needs to be member of the club
         member = Member.objects.filter(
             user=request.user, 
@@ -410,6 +451,7 @@ class MyBookedMeetingsView(APIView):
             MeetingAttendance.objects.filter(
                 member__user=request.user,
                 meeting__meeting_date__gte=today,
+                meeting__cancel_date__isnull=True,
             )
             .select_related("meeting", "meeting__club")
             .order_by("meeting__meeting_date", "meeting__start_time")
