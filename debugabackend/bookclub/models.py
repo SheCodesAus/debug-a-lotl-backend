@@ -3,6 +3,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 
+def default_empty_genre_list():
+    return []
+
 
 class Member(models.Model):
     """
@@ -61,6 +64,11 @@ class Club(models.Model):
     max_members = models.PositiveIntegerField(null=True, blank=True)
     club_meeting_mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_VIRTUAL)
     club_location = models.CharField(max_length=255, blank=True)
+    genres = models.JSONField(
+        default=default_empty_genre_list,
+        blank=True,
+        help_text="Curated genre labels from the book categories list.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
