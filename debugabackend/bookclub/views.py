@@ -5,7 +5,9 @@ from urllib.parse import quote_plus
 from urllib.error import HTTPError
 # Fetch the Google Books API response; URLError for network/connection failures.
 from urllib.request import urlopen, URLError
+from django.db import connections
 from django.db.models import Count, F, Prefetch
+from django.db.models import Q
 
 # GOOGLE_BOOKS_API_KEY is read from here for the BookSearch proxy.
 from django.conf import settings
@@ -15,6 +17,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from .book_categories import BOOK_CATEGORIES, MAX_CLUB_GENRES
 from .models import Meeting, MeetingAttendance, AnnouncementThread, Club, Member, ClubBook
 from .serializers import (
     ClubSerializer,
@@ -70,6 +73,41 @@ class ClubListCreate(APIView):
 
     def get(self, request):
         clubs = Club.objects.filter(is_active=True)
+
+        q = (request.GET.get("q") or "").strip()
+        if q:
+            clubs = clubs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+
+        visibility = (request.GET.get("visibility") or "").strip().lower()
+        if visibility == "public":
+            clubs = clubs.filter(is_public=True)
+        elif visibility == "private":
+            clubs = clubs.filter(is_public=False)
+
+        raw_genres = request.GET.getlist("genres")
+        if not raw_genres:
+            # Also support comma-separated form: ?genres=A,B,C
+            raw_csv = (request.GET.get("genres") or "").strip()
+            if raw_csv:
+                raw_genres = [g.strip() for g in raw_csv.split(",") if g.strip()]
+
+        if raw_genres:
+            # Genres are stored as a JSON list of strings on Club.
+            # Postgres supports JSONB containment; SQLite JSON querying varies.
+            db_vendor = connections[clubs.db].vendor
+            if db_vendor == "postgresql":
+                # OR match: any selected genre
+                combined = Club.objects.none()
+                for g in raw_genres:
+                    combined = combined | clubs.filter(genres__contains=[g])
+                clubs = combined
+            else:
+                # SQLite/dev fallback: filter in Python after DB prefilter.
+                clubs = [
+                    c
+                    for c in clubs
+                    if set(c.genres or []).intersection(raw_genres)
+                ]
         serializer = ClubSerializer(clubs, many=True, context={"request": request})
         return Response(serializer.data)
 
@@ -612,6 +650,18 @@ class ClubBookDetailView(APIView):
         book.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
+
+class BookCategoriesList(APIView):
+    """Curated category labels for club genre picker (aligned with Google Books categories)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(
+            {"categories": BOOK_CATEGORIES, "max_select": MAX_CLUB_GENRES},
+            status=status.HTTP_200_OK,
+        )
+
 
 class BookSearch(APIView):
     """Proxy to Google Books API. Requires GOOGLE_BOOKS_API_KEY in env."""

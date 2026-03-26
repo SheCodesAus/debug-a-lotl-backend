@@ -12,9 +12,16 @@ class MemberAdmin(admin.ModelAdmin):
 
 @admin.register(Club)
 class ClubAdmin(admin.ModelAdmin):
-    list_display = ["name", "owner", "is_public", "max_members", "club_meeting_mode", "created_at"]
+    list_display = ["name", "owner", "genres_preview", "is_public", "max_members", "club_meeting_mode", "created_at"]
     list_filter = ["is_public", "club_meeting_mode"]
     search_fields = ["name", "description", "club_location", "owner__username", "owner__email"]
+
+    @admin.display(description="Genres")
+    def genres_preview(self, obj):
+        g = obj.genres or []
+        if not g:
+            return "—"
+        return ", ".join(g[:5]) + ("…" if len(g) > 5 else "")
 
 
 @admin.register(Meeting)

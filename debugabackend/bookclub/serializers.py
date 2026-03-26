@@ -6,6 +6,7 @@ row with role=owner, status=approved so there is exactly one owner per club.
 """
 from django.utils import timezone
 from rest_framework import serializers
+from .book_categories import ALLOWED_BOOK_CATEGORIES, MAX_CLUB_GENRES
 from .models import Club, Member, ClubBook, Meeting, MeetingAttendance, AnnouncementThread
 
 
@@ -33,6 +34,7 @@ class ClubSerializer(serializers.ModelSerializer):
             "max_members",
             "club_meeting_mode",
             "club_location",
+            "genres",
             "member_count",
             "spots_remaining",
             "membership_status",
@@ -59,6 +61,31 @@ class ClubSerializer(serializers.ModelSerializer):
         approved_count = self._approved_members_qs(obj).count()
         remaining = obj.max_members - approved_count
         return max(remaining, 0)
+
+    def validate_genres(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Genres must be a list of strings.")
+        seen = set()
+        cleaned = []
+        for item in value:
+            if not isinstance(item, str):
+                raise serializers.ValidationError("Each genre must be a string.")
+            label = item.strip()
+            if not label or label in seen:
+                continue
+            if label not in ALLOWED_BOOK_CATEGORIES:
+                raise serializers.ValidationError(
+                    f'"{label}" is not a valid genre. Choose from the curated list.'
+                )
+            seen.add(label)
+            cleaned.append(label)
+        if len(cleaned) > MAX_CLUB_GENRES:
+            raise serializers.ValidationError(
+                f"Select at most {MAX_CLUB_GENRES} genres."
+            )
+        return cleaned
     
     def validate(self, attrs):
         """Public clubs cannot enforce a max member limit."""
